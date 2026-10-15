@@ -514,7 +514,7 @@ describe('Dashboard', () => {
     expect(within(screen.getByTestId('totals-row')).getByText('15 rows')).toBeInTheDocument()
   })
 
-  it('shows cards instead of a table on phone-sized screens', async () => {
+  it('shows holdings as cards instead of a table on phone-sized screens', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({
       matches: query.includes('max-width'),
       media: query,
@@ -522,18 +522,34 @@ describe('Dashboard', () => {
       removeEventListener: () => {},
     }))
     try {
-      seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', buyPrice: '30000', buyDate: '2024-01-02' }) // +$20,000
-      seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', buyPrice: '6000', buyDate: '2024-01-01' }) // −$3,000
+      seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', quantity: '2' })
+      seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', quantity: '1' })
+      await renderDashboard('/holdings')
+      const list = await screen.findByRole('list', { name: 'Holdings by coin' })
+      expect(screen.queryByRole('table')).not.toBeInTheDocument()
+      expect(within(list).getAllByRole('listitem')).toHaveLength(1)
+      expect(within(list).getByText('Bitcoin · 2 lots')).toBeInTheDocument()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('keeps the one-row-per-investment table on phone-sized screens', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    try {
+      seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', buyPrice: '30000', buyDate: '2024-01-02' })
+      seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', buyPrice: '6000', buyDate: '2024-01-01' })
       const { user } = await renderDashboard()
       await waitFor(() => expect(rows()).toHaveLength(2))
-      expect(screen.queryByRole('table', { name: 'Investments' })).not.toBeInTheDocument()
-      expect(screen.getByTestId('totals-card')).toHaveTextContent('2 rows')
+      expect(screen.getByRole('table', { name: 'Investments' })).toBeInTheDocument()
+      expect(screen.getByTestId('totals-row')).toHaveTextContent('2 rows')
 
-      // Sort by profit/loss, high → low
-      await user.selectOptions(screen.getByLabelText('Sort by'), 'pl')
-      await waitFor(() => expect(within(rows()[0]!).getByText('BTC')).toBeInTheDocument())
-
-      // Tapping a card opens its details; the ⋯ menu still works.
+      // Tapping a row opens its details; the ⋯ menu still works.
       await user.click(within(rows()[0]!).getByText('BTC'))
       expect(await screen.findByRole('dialog', { name: /Bitcoin \(BTC\) — position details/ })).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: 'Close dialog' }))

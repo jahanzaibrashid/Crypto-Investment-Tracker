@@ -16,12 +16,10 @@ import { InfoTip } from '@/components/ui/InfoTip'
 import { Pagination } from '@/components/ui/Pagination'
 import { PLPill } from '@/components/ui/PLPill'
 import { PLValue } from '@/components/ui/PLValue'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { cn } from '@/lib/cn'
 import { TABLE_PAGE_SIZES } from '@/lib/constants'
 import { formatShortDate, formatUsd } from '@/lib/formatters'
 import { InvestmentActions, type InvestmentAction } from './InvestmentActions'
-import { InvestmentCards } from './InvestmentCards'
 import { BoughtCell, CoinCell, CurrentValueCell, InvestedCell, ProfitLossCell, SoldAmountCell, ValueVsInvested } from './InvestmentCells'
 import { PositionStatusBadge } from './PositionStatusBadge'
 import { displayPL, positionKind, saleSummary, summarizePortfolio, type LotMetrics, type PortfolioSummary } from './investments.utils'
@@ -226,7 +224,6 @@ interface InvestmentTableProps {
 export function InvestmentTable({ lots, onAction }: InvestmentTableProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'buyDate', desc: true }])
   const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 10 })
-  const isPhone = useMediaQuery('(max-width: 767px)')
   const totals = useMemo(() => summarizePortfolio(lots), [lots])
   // `onAction` must be stable (useCallback) so the column model is not rebuilt each render.
   const columns = useMemo(() => buildColumns(onAction), [onAction])
@@ -261,29 +258,14 @@ export function InvestmentTable({ lots, onAction }: InvestmentTableProps) {
     />
   )
 
-  if (isPhone) {
-    return (
-      <div className="flex flex-col">
-        <InvestmentCards
-          rows={table.getRowModel().rows.map((r) => r.original)}
-          totals={totals}
-          totalCount={lots.length}
-          sorting={sorting}
-          onSortingChange={setSorting}
-          onAction={onAction}
-        />
-        {pager}
-      </div>
-    )
-  }
-
   const columnIds = table.getAllLeafColumns().map((c) => c.id)
   const last = columnIds.length - 1
 
   return (
     <div className="flex flex-col">
-      {/* Scrolls inside the card so the header (top) and totals (bottom) stay visible. */}
-      <div className="max-h-[calc(100vh-7rem)] min-h-96 overflow-auto">
+      {/* Scrolls inside the card so the header (top) and totals (bottom) stay visible.
+          Same table on every screen size; phones scroll it sideways. */}
+      <div className="max-h-[calc(100dvh-7rem)] min-h-96 overflow-auto">
         <table className="w-full border-separate border-spacing-0 text-[15px]" aria-label="Investments">
           <thead>
             {table.getHeaderGroups().map((group) => (

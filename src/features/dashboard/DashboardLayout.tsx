@@ -1,7 +1,8 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle, WifiOff } from 'lucide-react'
+import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { AppHeader } from '@/components/layout/AppHeader'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { PageContainer } from '@/components/layout/PageContainer'
@@ -80,7 +81,9 @@ export function DashboardLayout() {
     }
   }
 
-  const priceError = prices.error ? describeMarketDataError(prices.error) : null
+  const online = useOnlineStatus()
+  // Offline already has its own banner; a "network error" on top of it adds nothing.
+  const priceError = prices.error && online ? describeMarketDataError(prices.error) : null
 
   return (
     <PortfolioContext.Provider value={value}>
@@ -100,6 +103,12 @@ export function DashboardLayout() {
             onSignOut={handleSignOut}
           />
           <PageContainer>
+            {!online && (
+              <div role="status" className="flex items-start gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
+                <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                <span>You're offline. Showing the last loaded data; changes and price updates resume when you reconnect.</span>
+              </div>
+            )}
             {priceError && (
               <div role="alert" className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning-text" aria-hidden />

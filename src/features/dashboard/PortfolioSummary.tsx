@@ -16,14 +16,17 @@ interface CardProps {
 /** Equal-height summary card: label row, value, and a one-line footnote pinned to the bottom. */
 function StatCard({ label, icon, value, sub, testId }: CardProps) {
   return (
-    <div className="surface-card flex h-full min-h-28 flex-col p-4" data-testid={testId}>
+    <div className="surface-card flex h-full min-h-28 min-w-0 flex-col p-3 sm:p-4" data-testid={testId}>
       <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">
         <span className="truncate">{label}</span>
         <span className="shrink-0" aria-hidden>
           {icon}
         </span>
       </div>
-      <div className="tabular mt-2 truncate text-xl font-semibold tracking-tight text-foreground">{value}</div>
+      {/* Wraps rather than truncating: on a 2-column phone grid a cut-off amount would be misleading. */}
+      <div className="tabular mt-2 text-lg font-semibold tracking-tight wrap-anywhere text-foreground sm:text-xl [&_.whitespace-nowrap]:whitespace-normal">
+        {value}
+      </div>
       {sub && <div className="mt-auto pt-1 text-xs leading-snug text-muted-foreground">{sub}</div>}
     </div>
   )
@@ -50,7 +53,7 @@ export function PortfolioSummary({ summary, loading }: { summary: Summary | null
 
   return (
     <section aria-label="Portfolio summary" className="flex flex-col gap-3">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-4 xl:grid-cols-7">
         <StatCard
           label="Total Invested"
           icon={<PiggyBank className="h-4 w-4" aria-hidden />}

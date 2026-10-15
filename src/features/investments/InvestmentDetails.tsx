@@ -15,8 +15,8 @@ import type { LotMetrics, SaleMetrics } from './investments.utils'
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-border py-1.5 text-sm last:border-0">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="tabular text-right text-foreground">{children}</dd>
+      <dt className="shrink-0 text-muted-foreground">{label}</dt>
+      <dd className="tabular flex min-w-0 flex-wrap justify-end text-right text-foreground">{children}</dd>
     </div>
   )
 }
@@ -114,7 +114,7 @@ export function InvestmentDetails({ lot, onClose }: { lot: LotMetrics | null; on
                 <p className="text-sm text-muted-foreground">No sales recorded for this purchase.</p>
               ) : (
                 <div className="overflow-x-auto rounded-lg border border-border">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm whitespace-nowrap">
                     <thead className="bg-muted text-xs text-muted-foreground">
                       <tr>
                         <th className="px-3 py-2 text-left font-medium">Date</th>

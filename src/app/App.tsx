@@ -3,6 +3,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { missingEnvVars } from '@/lib/env'
 import { ConfigMissing } from './ConfigMissing'
 import { Providers } from './providers'
+import { PwaUpdatePrompt } from './PwaUpdatePrompt'
 import { AppRoutes } from './routes'
 
 export function App() {
@@ -16,6 +17,7 @@ export function App() {
           <AppRoutes />
         </Providers>
       </BrowserRouter>
+      <PwaUpdatePrompt />
     </ErrorBoundary>
   )
 }

@@ -5,7 +5,8 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 export function AuthLayout({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: ReactNode; footer?: ReactNode }) {
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-background px-4 py-10">
+    // Extra top padding on phones keeps the logo clear of the theme toggle when the form is taller than the screen.
+    <main className="relative flex min-h-dvh items-center justify-center bg-background px-4 pt-16 pb-10 sm:py-10">
       <ThemeToggle className="absolute top-4 right-4" />
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center justify-center gap-2 text-foreground">
@@ -14,7 +15,7 @@ export function AuthLayout({ title, subtitle, children, footer }: { title: strin
           </span>
           <span className="text-lg font-semibold tracking-tight">{APP_NAME}</span>
         </div>
-        <section className="surface-card p-6">
+        <section className="surface-card p-5 sm:p-6">
           <h1 className="text-lg font-semibold text-foreground">{title}</h1>
           {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
           <div className="mt-5">{children}</div>

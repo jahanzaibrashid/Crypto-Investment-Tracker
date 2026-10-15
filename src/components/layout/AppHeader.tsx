@@ -53,7 +53,7 @@ function AccountMenu({ email, onSignOut }: { email: string | null; onSignOut: ()
         <ChevronDown className="h-3.5 w-3.5" aria-hidden />
       </Button>
       {open && (
-        <div role="menu" className="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-popover">
+        <div role="menu" className="absolute right-0 z-30 mt-1 w-56 max-w-[calc(100vw-1.5rem)] rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-popover">
           <div className="truncate px-3 py-2 text-xs text-muted-foreground" title={email ?? undefined}>
             Signed in as
             <br />
@@ -81,9 +81,11 @@ export function AppHeader(props: AppHeaderProps) {
   const today = new Date(now).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
 
   return (
-    <header className="sticky top-0 z-20 border-b border-border bg-card">
+    // Phones: title on its own row and actions below it, and the header scrolls away instead of
+    // pinning ~150px of the screen. From `sm` up it is one row and stays pinned.
+    <header className="z-20 border-b border-border bg-card sm:sticky sm:top-0">
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 px-3 py-3 sm:px-6">
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-full sm:basis-0">
           <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">{APP_NAME}</h1>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             <time dateTime={new Date(now).toISOString().slice(0, 10)}>{today}</time>
@@ -100,7 +102,7 @@ export function AppHeader(props: AppHeaderProps) {
             )}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button
             variant="secondary"
             onClick={props.onRefreshPrices}
@@ -108,7 +110,7 @@ export function AppHeader(props: AppHeaderProps) {
             aria-label="Refresh prices"
             icon={<RefreshCw className={`h-4 w-4 ${props.pricesRefreshing ? 'animate-spin' : ''}`} aria-hidden />}
           >
-            <span className="hidden sm:inline">Refresh Prices</span>
+            <span className="hidden md:inline">Refresh Prices</span>
           </Button>
           <Button
             variant="primary"
@@ -118,7 +120,7 @@ export function AppHeader(props: AppHeaderProps) {
             aria-label="Export to Excel"
             icon={<Download className="h-4 w-4" aria-hidden />}
           >
-            <span className="hidden sm:inline">Export to Excel</span>
+            <span className="hidden md:inline">Export to Excel</span>
           </Button>
           <ThemeToggle />
           <AccountMenu email={props.email} onSignOut={props.onSignOut} />

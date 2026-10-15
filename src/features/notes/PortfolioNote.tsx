@@ -3,6 +3,8 @@ import { AlertTriangle, CheckCircle2, Cloud, Loader2, Save } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { Skeleton } from '@/components/ui/LoadingState'
+import { controlClass } from '@/components/ui/control'
+import { cn } from '@/lib/cn'
 import { useToast } from '@/components/ui/toast.context'
 import { LIMITS } from '@/lib/constants'
 import { ConflictError, errorMessage } from '@/lib/errors'
@@ -165,7 +167,7 @@ export function PortfolioNote() {
             onBlur={() => dirty && !remoteChanged && doSave()}
             rows={6}
             placeholder="Strategy, targets, reminders…"
-            className="w-full rounded-lg border border-input-border bg-input px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/60 focus:outline-none"
+            className={cn(controlClass, 'border-input-border py-2')}
           />
           <div className="mt-1 text-right text-xs text-muted-foreground">
             {draft.length.toLocaleString()} / {LIMITS.portfolioNoteMax.toLocaleString()}

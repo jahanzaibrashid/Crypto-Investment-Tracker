@@ -36,7 +36,7 @@ A single-page web app for tracking cryptocurrency purchases and sales in USD. It
   - A color legend (with counts) sits above the table; click an item to filter by that status.
   - A totals row sums the rows currently shown (after filters).
   - Visual style: profit/loss pills, a header and totals row that stay visible while the table scrolls, page-number pagination, and a "⋯" menu that appears on row hover (always visible on touch screens).
-  - On phones (< 768px) the table becomes a list of cards with a Sort-by control and a totals card.
+  - On phones the same table is shown, one row per investment, and scrolls sideways. The Holdings page switches to one card per coin below 768px.
   - Click a row, or press Enter on a focused row, to open its details.
   - The action buttons (edit, note, sell, delete) open only their own dialog.
 - **Theme:** Light, Dark and System, chosen with the toggle in the header and on the auth pages.
@@ -211,6 +211,15 @@ The **Export to Excel** button builds `crypto-portfolio-YYYY-MM-DD.xlsx`. SheetJ
 - **Sales History:** one row per sale, with allocated cost and realized P/L.
 
 Text that starts with `= + - @`, a tab or a carriage return is prefixed with `'` so it cannot run as a formula. Unavailable prices are written as `Unavailable`, never `0`. Export uses only the signed-in user's RLS-scoped data.
+
+## Installable app (PWA)
+
+The app can be installed to the home screen or desktop ("Install app" in Chrome/Edge, Share → **Add to Home Screen** in iOS Safari). It is built with [`vite-plugin-pwa`](https://vite-pwa-org.netlify.app/) (Workbox `generateSW`), configured in `vite.config.ts`.
+
+- **Icons:** generated at build time from `public/favicon.svg` (see `pwa-assets.config.ts`): `favicon.ico`, 64/192/512 PNGs, a maskable 512 for Android and a 180 apple-touch-icon. To change the icon, replace the SVG.
+- **Offline:** the app shell (HTML, JS, CSS, icons) is precached, so the app opens without a connection and shows an offline banner. Supabase and CoinGecko requests are **never cached**: balances and prices always come from the network.
+- **Updates:** after a deploy, open apps show "A new version of the app is available" with an **Update** button (`src/app/PwaUpdatePrompt.tsx`). It never reloads on its own, so an unsaved form is not lost. Open apps also check for a new version every hour.
+- **Development:** the service worker is only built for production. Use `npm run build && npm run preview` to try it locally.
 
 ## Testing
 

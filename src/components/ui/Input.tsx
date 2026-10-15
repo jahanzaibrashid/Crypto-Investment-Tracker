@@ -67,6 +67,9 @@ export function Input({ label, error, hint, aside, hideLabel, active, id, classN
             controlClass,
             'h-9',
             leading ? 'pl-7' : undefined,
+            // iOS Safari gives native date inputs a fixed intrinsic width and centered text,
+            // which overflows narrow grid cells; let them fill the cell like other inputs.
+            rest.type === 'date' && 'appearance-none text-left [&::-webkit-date-and-time-value]:text-left',
             controlBorder(error, active),
             className,
           )}

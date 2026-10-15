@@ -116,7 +116,7 @@ export function DropdownMenu({ triggerLabel, trigger, items }: { triggerLabel: s
           }
         }}
         className={cn(
-          'inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+          'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md pointer-coarse:h-9 pointer-coarse:w-9 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
           open && 'bg-muted text-foreground',
         )}
       >

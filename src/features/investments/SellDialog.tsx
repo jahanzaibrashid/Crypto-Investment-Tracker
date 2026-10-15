@@ -117,7 +117,7 @@ function SaleForm({ lot, onDone, onCancel }: { lot: LotMetrics; onDone: () => vo
         <Input label="Sale fee (USD, optional)" inputMode="decimal" leading="$" error={errors.fee?.message} {...register('fee')} />
       </div>
 
-      <div className="grid grid-cols-3 gap-3 rounded-lg border border-border bg-background p-3 text-sm" aria-live="polite">
+      <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-background p-3 text-sm sm:grid-cols-3" aria-live="polite">
         <div>
           <div className="text-xs text-muted-foreground">Net proceeds</div>
           <div className="tabular font-semibold">{preview ? formatUsd(preview.proceeds) : '—'}</div>
@@ -126,7 +126,7 @@ function SaleForm({ lot, onDone, onCancel }: { lot: LotMetrics; onDone: () => vo
           <div className="text-xs text-muted-foreground">Allocated cost</div>
           <div className="tabular font-semibold">{preview ? formatUsd(preview.cost) : '—'}</div>
         </div>
-        <div>
+        <div className="col-span-2 sm:col-span-1">
           <div className="text-xs text-muted-foreground">Realized P/L</div>
           <div className="flex flex-wrap gap-x-1.5 font-semibold" data-testid="realized-preview">
             {preview ? (

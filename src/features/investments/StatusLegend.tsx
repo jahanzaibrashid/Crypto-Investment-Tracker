@@ -38,7 +38,7 @@ export function StatusLegend({
             onClick={() => onSelect(isActive ? 'ALL' : kind)}
             title={isActive ? 'Show all statuses' : `Show only ${label}`}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted',
+              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted pointer-coarse:py-1.5',
               isActive ? 'border-primary ring-1 ring-primary/30' : 'border-border',
             )}
           >

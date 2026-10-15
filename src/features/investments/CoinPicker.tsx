@@ -59,7 +59,7 @@ export function CoinPicker({ value, onChange, error }: CoinPickerProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
         <label htmlFor={inputId} className="text-xs font-medium text-foreground">
           Cryptocurrency
         </label>
@@ -81,7 +81,7 @@ export function CoinPicker({ value, onChange, error }: CoinPickerProps) {
               onClick={() => choose(c)}
               aria-pressed={selected}
               className={cn(
-                'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors',
+                'inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors pointer-coarse:px-3 pointer-coarse:py-1.5',
                 selected
                   ? 'border-primary bg-primary/10 text-primary-text'
                   : 'border-border bg-card text-foreground hover:bg-muted',

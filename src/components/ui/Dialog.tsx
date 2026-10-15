@@ -80,7 +80,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
   if (!open) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <div
         className="absolute inset-0 bg-overlay"
         aria-hidden
@@ -94,14 +94,15 @@ export function Dialog({ open, onClose, title, description, children, footer, si
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
         className={cn(
-          'relative flex max-h-[92vh] w-full flex-col rounded-t-2xl border border-border bg-popover text-popover-foreground shadow-popover sm:rounded-2xl',
+          // Centered on every screen size. dvh: on phones 100vh includes the area behind the browser's URL bar.
+          'relative flex max-h-[calc(100dvh-1.5rem)] w-full flex-col rounded-2xl border border-border bg-popover text-popover-foreground shadow-popover sm:max-h-[calc(100dvh-2rem)]',
           size === 'sm' && 'sm:max-w-md',
           size === 'md' && 'sm:max-w-lg',
           size === 'lg' && 'sm:max-w-3xl',
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
-          <div>
+        <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-4 sm:px-5">
+          <div className="min-w-0 wrap-break-word">
             <h2 id={titleId} className="text-base font-semibold text-foreground">
               {title}
             </h2>
@@ -115,14 +116,14 @@ export function Dialog({ open, onClose, title, description, children, footer, si
             type="button"
             onClick={onClose}
             disabled={!dismissible}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+            className="-m-1 shrink-0 rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
             aria-label="Close dialog"
           >
             <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-border px-5 py-3">{footer}</div>}
+        <div className="overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">{children}</div>
+        {footer && <div className="flex flex-wrap justify-end gap-2 border-t border-border px-4 py-3 sm:px-5">{footer}</div>}
       </div>
     </div>,
     document.body,
