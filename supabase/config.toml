@@ -1,0 +1,33 @@
+# Minimal Supabase CLI config for local development.
+# Run `supabase init` in a fresh checkout if your CLI version needs the full template;
+# keep the settings below.
+project_id = "crypto-investment-tracker"
+
+[api]
+port = 54321
+schemas = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[auth]
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/reset-password", "http://localhost:3000/login"]
+enable_signup = true
+jwt_expiry = 3600
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+
+[functions.coingecko-proxy]
+verify_jwt = true

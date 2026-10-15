@@ -1,0 +1,146 @@
+@import 'tailwindcss';
+@import './styles/theme.css';
+
+/* Map design tokens to Tailwind utilities (bg-card, text-muted-foreground, border-input-border, …).
+   `inline` makes utilities reference the CSS variables, so they follow the active theme. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-row-hover: var(--row-hover);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-border: var(--input-border);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-text: var(--primary-text);
+  --color-primary-solid: var(--primary-solid);
+  --color-primary-solid-hover: var(--primary-solid-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-success: var(--success);
+  --color-success-text: var(--success-text);
+  --color-destructive: var(--destructive);
+  --color-destructive-text: var(--destructive-text);
+  --color-destructive-solid: var(--destructive-solid);
+  --color-destructive-solid-hover: var(--destructive-solid-hover);
+  --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
+  --color-info: var(--info);
+  --color-info-text: var(--info-text);
+  --color-long-term: var(--long-term);
+  --color-long-term-text: var(--long-term-text);
+  --color-overlay: var(--overlay);
+  --shadow-card: var(--elevation-card);
+  --shadow-popover: var(--elevation-popover);
+}
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, monospace;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  /* Tailwind v4 dropped the pointer cursor on buttons; restore it for everything clickable. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='option'],
+  [role='menuitem'],
+  a[href],
+  select:not(:disabled),
+  summary,
+  label[for],
+  input[type='checkbox']:not(:disabled),
+  input[type='radio']:not(:disabled),
+  input[type='date']::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+  [data-theme='dark'] input[type='date']::-webkit-calendar-picker-indicator {
+    filter: invert(0.8);
+  }
+}
+
+/* Numbers line up in columns. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Investment table rows tinted by position status (see data-row-tone in InvestmentTable).
+   A 3px stripe on the left repeats the status color. */
+@layer components {
+  [data-row-tone] {
+    --muted-foreground: var(--row-muted-foreground);
+    --success-text: var(--row-success-text);
+    --warning-text: var(--row-warning-text);
+    background-color: var(--row-bg);
+  }
+  /* Status stripe: on the card itself, or on the first cell of a table row
+     (box-shadow on <tr> is not painted reliably in every browser). */
+  [data-row-tone]:not(tr),
+  tr[data-row-tone] > td:first-child {
+    box-shadow: inset 3px 0 0 var(--row-stripe);
+  }
+  [data-row-tone]:hover,
+  [data-row-tone]:focus-visible {
+    background-color: var(--row-bg-hover);
+  }
+  [data-row-tone='HOLDING'] {
+    --row-bg: var(--row-holding);
+    --row-bg-hover: var(--row-holding-hover);
+    --row-stripe: var(--primary);
+  }
+  [data-row-tone='LONG_TERM'] {
+    --row-bg: var(--row-long-term);
+    --row-bg-hover: var(--row-long-term-hover);
+    --row-stripe: var(--long-term);
+  }
+  [data-row-tone='SOLD_PROFIT'] {
+    --row-bg: var(--row-profit);
+    --row-bg-hover: var(--row-profit-hover);
+    --row-stripe: var(--success);
+  }
+  [data-row-tone='SOLD_LOSS'] {
+    --row-bg: var(--row-loss);
+    --row-bg-hover: var(--row-loss-hover);
+    --row-stripe: var(--destructive);
+  }
+}
+
+/* The standard card: rounded, subtle border, restrained shadow (none in dark). */
+@utility surface-card {
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--border);
+  background-color: var(--card);
+  color: var(--card-foreground);
+  box-shadow: var(--elevation-card);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

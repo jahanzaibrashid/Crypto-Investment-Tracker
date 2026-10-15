@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+coverage/
+*.tsbuildinfo
+
+# test artifacts
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# environment / secrets — never commit real credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+supabase/.env
+supabase/functions/.env
+supabase/.temp/
+supabase/.branches/
+
+# editors / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log
+npm-debug.log*
+.vercel

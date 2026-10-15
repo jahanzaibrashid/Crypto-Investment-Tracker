@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f8fafc" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="description" content="Track cryptocurrency purchases, sales, and portfolio performance in USD." />
+    <title>Crypto Investment Tracker</title>
+    <script>
+      // Apply the saved theme before first paint to avoid a flash. Mirrors src/lib/theme.ts.
+      ;(function () {
+        var pref = 'system'
+        try {
+          pref = localStorage.getItem('cit-theme') || 'system'
+        } catch (e) {}
+        var dark = pref === 'dark' || (pref !== 'light' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        var theme = dark ? 'dark' : 'light'
+        document.documentElement.dataset.theme = theme
+        document.documentElement.style.colorScheme = theme
+        document.querySelector('meta[name="theme-color"]').setAttribute('content', dark ? '#0b1120' : '#f8fafc')
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
