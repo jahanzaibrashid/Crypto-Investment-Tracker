@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_ANON_KEY?: string
   readonly VITE_MARKET_DATA_MODE?: 'direct' | 'proxy'
   readonly VITE_COINGECKO_API_KEY?: string
+  readonly VITE_SITE_URL?: string
 }
 
 interface ImportMeta {

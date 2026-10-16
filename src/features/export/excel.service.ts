@@ -78,6 +78,9 @@ export const INVESTMENT_HEADERS = [
   'Net Sale Proceeds (USD)',
   'Sale Fees (USD)',
   'Note',
+  // Used by Import: the long-term flag, and a key that links rows in Sales History to their lot.
+  'Long-term',
+  'Lot ID',
 ] as const
 
 export const SALES_HEADERS = [
@@ -95,6 +98,7 @@ export const SALES_HEADERS = [
   'Realized P/L (USD)',
   'Realized ROI',
   'Sale Note',
+  'Lot ID',
 ] as const
 
 function investmentRow(lot: LotMetrics): Cell[] {
@@ -134,6 +138,8 @@ function investmentRow(lot: LotMetrics): Cell[] {
     hasSales ? num(lot.netSaleProceeds, FMT.usd) : blank(),
     hasSales ? num(saleFees, FMT.usd) : blank(),
     text(inv.note),
+    text(inv.longTerm ? 'Yes' : 'No'),
+    text(inv.id),
   ]
 }
 
@@ -156,6 +162,7 @@ function salesRows(lots: LotMetrics[]): Cell[][] {
         num(s.realizedPL, FMT.usd),
         pct(s.realizedROI),
         text(s.sale.note),
+        text(lot.investment.id),
       ])
     }
   }
@@ -190,7 +197,7 @@ export function buildWorkbook(input: ExportInput): XLSX.WorkBook {
   const { lots, summary } = input
   const wb = XLSX.utils.book_new()
 
-  const invWidths = [18, 8, 18, 12, 18, 18, 18, 14, 18, 16, 18, 18, 12, 18, 20, 18, 18, 10, 24, 14, 18, 20, 14, 40]
+  const invWidths = [18, 8, 18, 12, 18, 18, 18, 14, 18, 16, 18, 18, 12, 18, 20, 18, 18, 10, 24, 14, 18, 20, 14, 40, 10, 38]
   XLSX.utils.book_append_sheet(wb, sheetFromRows(INVESTMENT_HEADERS, lots.map(investmentRow), invWidths), 'Investments')
 
   // Summary (key / value)
@@ -233,7 +240,7 @@ export function buildWorkbook(input: ExportInput): XLSX.WorkBook {
   ]
   XLSX.utils.book_append_sheet(wb, sheetFromRows(['Metric', 'Value'], summaryRows, [34, 80]), 'Portfolio Summary')
 
-  XLSX.utils.book_append_sheet(wb, sheetFromRows(SALES_HEADERS, salesRows(lots), [18, 8, 18, 12, 12, 16, 18, 18, 14, 18, 20, 18, 12, 40]), 'Sales History')
+  XLSX.utils.book_append_sheet(wb, sheetFromRows(SALES_HEADERS, salesRows(lots), [18, 8, 18, 12, 12, 16, 18, 18, 14, 18, 20, 18, 12, 40, 38]), 'Sales History')
 
   wb.Props = { Title: 'Crypto Investment Portfolio', CreatedDate: new Date(input.exportedAt) }
   return wb

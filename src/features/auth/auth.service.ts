@@ -1,5 +1,6 @@
 import type { AuthError } from '@supabase/supabase-js'
 import { getSupabase } from '@/lib/supabase'
+import { env } from '@/lib/env'
 import { AppError } from '@/lib/errors'
 
 /** Translate Supabase Auth errors into friendly messages without leaking internals. */
@@ -26,8 +27,13 @@ export function friendlyAuthError(error: AuthError | Error | null | undefined): 
   return new AppError('Authentication failed. Please try again.')
 }
 
+/**
+ * Where links in auth emails (confirm signup, reset password) point to: VITE_SITE_URL when set,
+ * otherwise the address the app is currently open on. Supabase only accepts URLs listed under
+ * Authentication → URL Configuration → Redirect URLs.
+ */
 function redirectUrl(path: string): string {
-  return new URL(path, window.location.origin).toString()
+  return new URL(path, env.siteUrl ?? window.location.origin).toString()
 }
 
 export async function signIn(email: string, password: string) {

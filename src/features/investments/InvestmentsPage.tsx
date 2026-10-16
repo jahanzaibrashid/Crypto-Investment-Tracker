@@ -21,13 +21,13 @@ import { StatusLegend } from './StatusLegend'
 import type { InvestmentAction } from './InvestmentActions'
 import { EMPTY_FILTERS, filterLots, type InvestmentFilterState } from './investments.filters'
 import { useInvestmentMutations } from './investments.hooks'
-import type { LotMetrics } from './investments.utils'
+import { reorderedOpenIds, type LotMetrics } from './investments.utils'
 
 type DialogState = { kind: 'none' } | { kind: 'add' } | { kind: 'edit' | 'view' | 'sell' | 'note' | 'delete'; id: string }
 
 export function InvestmentsPage() {
   const { investmentsQuery, lots } = usePortfolio()
-  const { remove } = useInvestmentMutations()
+  const { remove, reorder } = useInvestmentMutations()
   const toast = useToast()
   const location = useLocation()
   const navigate = useNavigate()
@@ -44,6 +44,15 @@ export function InvestmentsPage() {
   }, [location.state, location.pathname, navigate])
 
   const closeDialog = useCallback(() => setDialog({ kind: 'none' }), [])
+  const { mutate: saveOrder } = reorder
+  // Dropping a row computes the new order of every open lot (not just the filtered page).
+  const onReorder = useCallback(
+    (activeId: string, overId: string) => {
+      const ids = reorderedOpenIds(lots, activeId, overId)
+      if (ids) saveOrder(ids, { onError: (e) => toast.error(errorMessage(e)) })
+    },
+    [lots, saveOrder, toast],
+  )
   const onAction = useCallback((action: InvestmentAction, lot: LotMetrics) => setDialog({ kind: action, id: lot.investment.id }), [])
   const activeLot = dialog.kind !== 'none' && dialog.kind !== 'add' ? (lots.find((l) => l.investment.id === dialog.id) ?? null) : null
   const lotFor = (kind: DialogState['kind']) => (dialog.kind === kind ? activeLot : null)
@@ -100,7 +109,7 @@ export function InvestmentsPage() {
                   }
                 />
               ) : (
-                <InvestmentTable lots={visibleLots} onAction={onAction} />
+                <InvestmentTable lots={visibleLots} onAction={onAction} onReorder={onReorder} reordering={reorder.isPending} />
               )}
             </>
           )}

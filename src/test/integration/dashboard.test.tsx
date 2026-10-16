@@ -550,7 +550,7 @@ describe('Dashboard', () => {
       expect(screen.getByTestId('totals-row')).toHaveTextContent('2 rows')
 
       // Tapping a row opens its details; the ⋯ menu still works.
-      await user.click(within(rows()[0]!).getByText('BTC'))
+      await user.click(within(rows().find((r) => within(r).queryByText('BTC'))!).getByText('BTC'))
       expect(await screen.findByRole('dialog', { name: /Bitcoin \(BTC\) — position details/ })).toBeInTheDocument()
       await user.click(screen.getByRole('button', { name: 'Close dialog' }))
       await rowAction(user, 'Ethereum', 'Edit')
@@ -647,6 +647,120 @@ describe('Dashboard', () => {
     await waitFor(() => expect(rows()).toHaveLength(1))
     await user.click(screen.getByRole('button', { name: 'Export to Excel' }))
     expect(await screen.findByText('Export failed: disk full')).toBeInTheDocument()
+  })
+
+  it('imports a workbook: previews new, duplicate and invalid rows, then adds only the new ones', async () => {
+    seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', buyDate: '2024-01-15', buyPrice: '100', quantity: '1' })
+    const wb = XLSX.utils.book_new()
+    const header = ['Coin', 'Symbol', 'CoinGecko ID', 'Buy Date', 'Buy Price (USD)', 'Original Quantity', 'Purchase Fees (USD)', 'Note', 'Long-term', 'Lot ID']
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet([
+        header,
+        ['Bitcoin', 'BTC', 'bitcoin', '2024-01-15', 100, 1, 0, '', 'No', 'L1'], // already in the portfolio
+        ['Ethereum', 'ETH', 'ethereum', '2024-02-01', 2000, 2, 5, 'from exchange', 'Yes', 'L2'],
+        ['Broken', 'BRK', 'broken', '2024-02-01', 0, 1, 0, '', 'No', 'L3'], // price must be > 0
+      ]),
+      'Investments',
+    )
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.aoa_to_sheet([
+        ['CoinGecko ID', 'Buy Date', 'Sale Date', 'Quantity Sold', 'Sale Price (USD)', 'Sale Fee (USD)', 'Lot ID'],
+        ['ethereum', '2024-02-01', '2024-03-01', 0.5, 2500, 0, 'L2'],
+      ]),
+      'Sales History',
+    )
+    const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+    const file = new File([bytes], 'portfolio.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+
+    const { user } = await renderDashboard()
+    await waitFor(() => expect(rows()).toHaveLength(1))
+    await user.upload(screen.getByTestId('import-file-input'), file)
+
+    const dialog = await screen.findByRole('dialog', { name: 'Import investments' })
+    expect(await within(dialog).findByText('1 new investment (with 1 sale) will be added')).toBeInTheDocument()
+    expect(within(dialog).getByText('1 investment already in your portfolio will be skipped')).toBeInTheDocument()
+    expect(within(dialog).getByText("1 row can't be imported")).toBeInTheDocument()
+    expect(within(dialog).getByText(/Investments row 4: Buy price must be greater than zero/)).toBeInTheDocument()
+    expect(investmentsServiceMock.importInvestments).not.toHaveBeenCalled() // nothing saved before confirming
+
+    await user.click(within(dialog).getByRole('button', { name: 'Import 1 investment' }))
+    expect(await screen.findByText('Imported 1 investment; 2 skipped.')).toBeInTheDocument()
+    await waitFor(() => expect(rows()).toHaveLength(2))
+    expect(screen.queryByRole('dialog', { name: 'Import investments' })).not.toBeInTheDocument()
+
+    // Only purchase data is sent; ownership is left to the database (auth.uid()).
+    const sent = vi.mocked(investmentsServiceMock.importInvestments).mock.calls[0]![0]
+    expect(sent).toEqual([
+      {
+        coinId: 'ethereum',
+        coinName: 'Ethereum',
+        symbol: 'ETH',
+        buyDate: '2024-02-01',
+        buyPrice: '2000',
+        quantity: '2',
+        buyFee: '5',
+        longTerm: true,
+        note: 'from exchange',
+        sales: [{ soldDate: '2024-03-01', quantity: '0.5', price: '2500', fee: '0', note: null }],
+      },
+    ])
+  })
+
+  it('lists new investments first, reorders by dragging the grip, and keeps sold ones by sale date', async () => {
+    seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', buyDate: '2024-03-01' })
+    seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', buyDate: '2024-01-01' })
+    seedInvestment({ coinId: 'cardano', coinName: 'Cardano', symbol: 'ADA', buyDate: '2024-02-01' })
+    seedInvestment({
+      coinId: 'solana', coinName: 'Solana', symbol: 'SOL', quantity: '1', buyDate: '2024-01-01',
+      sales: [{ id: 's1', investmentId: 'x', soldDate: '2024-04-01', quantity: '1', price: '200', fee: '0', note: null, createdAt: '' }],
+    })
+    // jsdom has no layout: give each row a 40px-high box in document order so dragging has positions to work with.
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      const row = this.closest('[data-testid="investment-row"]')
+      const top = row ? rows().indexOf(row as HTMLElement) * 40 : 0
+      return { top, bottom: top + 40, left: 0, right: 800, width: 800, height: 40, x: 0, y: top, toJSON: () => ({}) } as DOMRect
+    })
+    try {
+      const order = () => rows().map((r) => within(r).getByText(/^(BTC|ETH|ADA|SOL)$/).textContent)
+      const { user } = await renderDashboard()
+      await waitFor(() => expect(rows()).toHaveLength(4))
+      // Newest added on top, regardless of buy date; the sold lot comes last and can't be dragged.
+      expect(order()).toEqual(['ADA', 'ETH', 'BTC', 'SOL'])
+      expect(screen.getByRole('button', { name: /^Drag to reorder SOL/ })).toBeDisabled()
+
+      // Keyboard drag: Space picks up, ↓ ↓ moves two places, Space drops.
+      screen.getByRole('button', { name: /^Drag to reorder ADA/ }).focus()
+      await user.keyboard(' ')
+      await user.keyboard('{ArrowDown}')
+      await user.keyboard('{ArrowDown}')
+      await user.keyboard(' ')
+      await waitFor(() => expect(order()).toEqual(['ETH', 'BTC', 'ADA', 'SOL']))
+      expect(investmentsServiceMock.reorderOpenInvestments).toHaveBeenCalledTimes(1)
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument() // dragging didn't open the row
+
+      // A column sort is temporary and pauses dragging; clearing it restores the saved order.
+      await user.click(screen.getByRole('button', { name: 'Sort by coin' })) // by name: Bitcoin, Cardano, Ethereum, Solana
+      await waitFor(() => expect(order()).toEqual(['BTC', 'ADA', 'ETH', 'SOL']))
+      expect(screen.getByRole('button', { name: /^Drag to reorder BTC/ })).toBeDisabled()
+      await user.click(screen.getByRole('button', { name: 'Back to saved order' }))
+      expect(order()).toEqual(['ETH', 'BTC', 'ADA', 'SOL'])
+      expect(screen.getByRole('button', { name: /^Drag to reorder BTC/ })).toBeEnabled()
+    } finally {
+      rect.mockRestore()
+    }
+  })
+
+  it('explains why a file cannot be imported', async () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Name', 'Amount'], ['x', 1]]), 'Sheet1')
+    const bytes = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+    const { user } = await renderDashboard()
+    await user.upload(screen.getByTestId('import-file-input'), new File([bytes], 'other.xlsx'))
+    const dialog = await screen.findByRole('dialog', { name: 'Import investments' })
+    expect(await within(dialog).findByText(/doesn't look like an export from this app/)).toBeInTheDocument()
+    expect(within(dialog).getByRole('button', { name: 'Nothing to import' })).toBeDisabled()
   })
 
   it('autosaves the portfolio note with optimistic concurrency', async () => {

@@ -5,10 +5,24 @@ export interface AppEnv {
   supabaseAnonKey: string | undefined
   marketDataMode: MarketDataMode
   coingeckoApiKey: string | undefined
+  /** Public address of the app (origin only), used for links in auth emails. */
+  siteUrl: string | undefined
 }
 
 function clean(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined
+}
+
+/** The origin of an http(s) URL ("https://app.example.com/x/" → "https://app.example.com"); undefined if invalid. */
+export function parseSiteUrl(value: unknown): string | undefined {
+  const raw = clean(value)
+  if (!raw) return undefined
+  try {
+    const url = new URL(raw)
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.origin : undefined
+  } catch {
+    return undefined
+  }
 }
 
 export const env: AppEnv = {
@@ -16,6 +30,7 @@ export const env: AppEnv = {
   supabaseAnonKey: clean(import.meta.env.VITE_SUPABASE_ANON_KEY),
   marketDataMode: clean(import.meta.env.VITE_MARKET_DATA_MODE) === 'proxy' ? 'proxy' : 'direct',
   coingeckoApiKey: clean(import.meta.env.VITE_COINGECKO_API_KEY),
+  siteUrl: parseSiteUrl(import.meta.env.VITE_SITE_URL),
 }
 
 /** Names of required variables that are not configured. */

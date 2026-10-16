@@ -6,10 +6,12 @@ import {
   deleteInvestment,
   deleteSale,
   fetchInvestments,
+  importInvestments,
+  reorderOpenInvestments,
   updateInvestment,
   updateInvestmentNote,
 } from './investments.service'
-import type { Investment, InvestmentInput, SaleInput } from './investments.types'
+import type { ImportLotInput, Investment, InvestmentInput, SaleInput } from './investments.types'
 
 /** Keys are scoped to the user so cached data can never cross accounts. */
 export const investmentKeys = {
@@ -80,5 +82,28 @@ export function useInvestmentMutations() {
     onSettled: invalidate,
   })
 
-  return { create, update, remove, updateNote, sell, removeSale }
+  const importLots = useMutation({
+    mutationFn: (lots: ImportLotInput[]) => importInvestments(lots),
+    onSettled: invalidate,
+  })
+
+  // Optimistic: rows take their new places immediately; on failure the snapshot is restored.
+  // Mirrors the database: the top lot keeps the highest current value, each next one is one lower.
+  const reorder = useMutation({
+    mutationFn: (ids: string[]) => reorderOpenInvestments(ids),
+    onMutate: async (ids) => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<Investment[]>(key)
+      const top = Math.max(...(previous ?? []).filter((i) => ids.includes(i.id)).map((i) => i.sortOrder))
+      const next = new Map(ids.map((id, pos) => [id, top - pos]))
+      qc.setQueryData<Investment[]>(key, (list) => list?.map((i) => (next.has(i.id) ? { ...i, sortOrder: next.get(i.id)! } : i)))
+      return { previous }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous)
+    },
+    onSettled: invalidate,
+  })
+
+  return { create, update, remove, updateNote, sell, removeSale, importLots, reorder }
 }

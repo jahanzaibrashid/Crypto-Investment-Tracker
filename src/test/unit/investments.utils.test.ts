@@ -9,6 +9,8 @@ import {
   currentValue,
   grossPurchaseCost,
   netSaleProceeds,
+  permanentOrder,
+  reorderedOpenIds,
   roiPercent,
   summarizePortfolio,
   totalCostBasis,
@@ -318,5 +320,45 @@ describe('saleSummary', () => {
     expect(s.netProceeds.toString()).toBe('357')
     expect(s.lastSoldDate).toBe('2024-04-01')
     expect(s.count).toBe(2)
+  })
+})
+
+describe('permanentOrder', () => {
+  const ids = (lots: ReturnType<typeof computeLot>[]) => permanentOrder(lots).map((l) => l.investment.id)
+  const lot = (inv: Parameters<typeof makeInvestment>[0]) => computeLot(makeInvestment(inv), priceLookup({ bitcoin: '100' }))
+
+  it('lists open lots by saved order (highest first), then sold lots by most recent sale', () => {
+    const lots = [
+      lot({ id: 'open-low', sortOrder: 1 }),
+      lot({ id: 'sold-old', sortOrder: 99, quantity: '1', sales: [makeSale({ quantity: '1', soldDate: '2024-02-01' })] }),
+      lot({ id: 'open-high', sortOrder: 5 }),
+      lot({ id: 'sold-new', sortOrder: 0, quantity: '1', sales: [makeSale({ quantity: '1', soldDate: '2024-06-01' })] }),
+      // Partially sold is still open, so it keeps its saved position.
+      lot({ id: 'partial', sortOrder: 3, quantity: '2', sales: [makeSale({ quantity: '1', soldDate: '2024-09-01' })] }),
+    ]
+    expect(ids(lots)).toEqual(['open-high', 'partial', 'open-low', 'sold-new', 'sold-old'])
+  })
+
+  it('uses the latest of several sales for a sold lot', () => {
+    const lots = [
+      lot({ id: 'a', quantity: '2', sales: [makeSale({ quantity: '1', soldDate: '2024-01-10' }), makeSale({ quantity: '1', soldDate: '2024-08-01' })] }),
+      lot({ id: 'b', quantity: '1', sales: [makeSale({ quantity: '1', soldDate: '2024-05-01' })] }),
+    ]
+    expect(ids(lots)).toEqual(['a', 'b'])
+  })
+})
+
+describe('reorderedOpenIds', () => {
+  const lots = ['a', 'b', 'c', 'd'].map((id, i) => computeLot(makeInvestment({ id, sortOrder: 10 - i }), priceLookup({})))
+  const sold = computeLot(makeInvestment({ id: 's', quantity: '1', sales: [makeSale({ quantity: '1' })] }), priceLookup({}))
+
+  it('moves the dragged lot to the drop target\'s place, in either direction', () => {
+    expect(reorderedOpenIds(lots, 'a', 'c')).toEqual(['b', 'c', 'a', 'd'])
+    expect(reorderedOpenIds(lots, 'd', 'b')).toEqual(['a', 'd', 'b', 'c'])
+  })
+
+  it('returns null when nothing changes or a sold lot is involved', () => {
+    expect(reorderedOpenIds(lots, 'b', 'b')).toBeNull()
+    expect(reorderedOpenIds([...lots, sold], 's', 'a')).toBeNull()
   })
 })

@@ -14,9 +14,15 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:migrate": "node --env-file=.env.local scripts/db.mjs migrate",
+    "db:status": "node --env-file=.env.local scripts/db.mjs status",
+    "db:baseline": "node --env-file=.env.local scripts/db.mjs baseline"
   },
   "dependencies": {
+    "@dnd-kit/core": "6.3.1",
+    "@dnd-kit/sortable": "10.0.0",
+    "@dnd-kit/utilities": "3.2.2",
     "@hookform/resolvers": "^5.9.1",
     "@supabase/supabase-js": "^2.117.3",
     "@tanstack/react-query": "^5.104.2",

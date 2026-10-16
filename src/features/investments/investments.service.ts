@@ -7,12 +7,12 @@
  */
 import { getSupabase } from '@/lib/supabase'
 import { mapDbError } from '@/lib/errors'
-import type { Investment, InvestmentInput, Sale, SaleInput } from './investments.types'
+import type { ImportLotInput, Investment, InvestmentInput, Sale, SaleInput } from './investments.types'
 
 const PAGE = 1000 // PostgREST default max-rows
 
 const INVESTMENT_COLUMNS =
-  'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, long_term, note, created_at, updated_at'
+  'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, long_term, sort_order, note, created_at, updated_at'
 const SALE_COLUMNS = 'id, investment_id, sold_date, quantity::text, price::text, fee::text, note, created_at'
 
 interface InvestmentRow {
@@ -26,6 +26,7 @@ interface InvestmentRow {
   buy_fee: string
   status: 'HOLDING' | 'SOLD'
   long_term: boolean
+  sort_order: number | string
   note: string | null
   created_at: string
   updated_at: string
@@ -67,6 +68,7 @@ export function mapInvestment(r: InvestmentRow, sales: Sale[]): Investment {
     buyFee: String(r.buy_fee),
     status: r.status,
     longTerm: Boolean(r.long_term),
+    sortOrder: Number(r.sort_order),
     note: r.note,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -161,6 +163,33 @@ export async function createSale(input: SaleInput): Promise<void> {
       note: input.note?.trim() ? input.note.trim() : null,
     })
   if (error) throw mapDbError(error, 'Could not record the sale.')
+}
+
+/**
+ * Insert many lots and their sales in one database transaction (all or nothing).
+ * Ownership comes from the session (auth.uid()) inside the database function;
+ * nothing in the payload identifies a user. Returns the number of lots inserted.
+ */
+export async function importInvestments(lots: ImportLotInput[]): Promise<number> {
+  const payload = lots.map((lot) => ({
+    ...toInvestmentPayload(lot),
+    sales: lot.sales.map((s) => ({
+      sold_date: s.soldDate,
+      quantity: s.quantity,
+      price: s.price,
+      fee: s.fee || '0',
+      note: s.note?.trim() ? s.note.trim() : null,
+    })),
+  }))
+  const { data, error } = await getSupabase().rpc('import_investments', { p_lots: payload })
+  if (error) throw mapDbError(error, 'Could not import the investments.')
+  return Number(data ?? 0)
+}
+
+/** Save the order of all open lots (ids top to bottom), atomically in the database. */
+export async function reorderOpenInvestments(ids: string[]): Promise<void> {
+  const { error } = await getSupabase().rpc('reorder_open_investments', { p_ids: ids })
+  if (error) throw mapDbError(error, 'Could not save the new order.')
 }
 
 export async function deleteSale(id: string): Promise<void> {

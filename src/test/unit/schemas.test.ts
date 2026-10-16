@@ -122,4 +122,9 @@ describe('mapDbError', () => {
     )
     expect(mapDbError({ code: 'XX000', message: 'relation "secret_internal" does not exist' }).message).not.toMatch(/secret/)
   })
+  it('explains a missing column as a database that needs the latest migrations', () => {
+    const msg = mapDbError({ code: '42703', message: 'column investments.sort_order does not exist' }).message
+    expect(msg).toMatch(/supabase\/migrations/)
+    expect(msg).not.toMatch(/sort_order/)
+  })
 })

@@ -32,6 +32,7 @@ export function makeInvestment(overrides: Partial<Investment> = {}): Investment 
     buyFee: '0',
     status: 'HOLDING',
     longTerm: false,
+    sortOrder: seq,
     note: null,
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',

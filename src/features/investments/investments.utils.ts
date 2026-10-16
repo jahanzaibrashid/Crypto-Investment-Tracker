@@ -400,3 +400,43 @@ export function displayPL(lot: LotMetrics): Dec | null {
 export function displayROI(lot: LotMetrics): Dec | null {
   return lot.status === 'SOLD' ? lot.realizedROI : lot.unrealizedROI
 }
+
+/** Date of the most recent sale (YYYY-MM-DD), or null when nothing was sold. */
+export function lastSoldDate(lot: LotMetrics): string | null {
+  let last: string | null = null
+  for (const s of lot.sales) if (last === null || s.sale.soldDate > last) last = s.sale.soldDate
+  return last
+}
+
+/**
+ * The table's permanent order (used whenever no column sort is active):
+ * 1. Open lots (including partially sold) in the user's saved order, newest first by default.
+ * 2. Fully sold lots, most recently sold first.
+ * Ties fall back to newest-created first, then id, so the order is stable.
+ */
+export function permanentOrder(lots: LotMetrics[]): LotMetrics[] {
+  const newest = (a: LotMetrics, b: LotMetrics) =>
+    b.investment.createdAt.localeCompare(a.investment.createdAt) || a.investment.id.localeCompare(b.investment.id)
+  const open = lots.filter((l) => l.status !== 'SOLD').sort((a, b) => b.investment.sortOrder - a.investment.sortOrder || newest(a, b))
+  const sold = lots
+    .filter((l) => l.status === 'SOLD')
+    .sort((a, b) => (lastSoldDate(b) ?? '').localeCompare(lastSoldDate(a) ?? '') || newest(a, b))
+  return [...open, ...sold]
+}
+
+/**
+ * New top-to-bottom order of ALL open lots after dragging `activeId` onto `overId`'s place.
+ * Works on the full list, so lots hidden by filters keep their relative positions.
+ * Returns null when nothing changes or either id isn't an open lot.
+ */
+export function reorderedOpenIds(lots: LotMetrics[], activeId: string, overId: string): string[] | null {
+  const ids = permanentOrder(lots)
+    .filter((l) => l.status !== 'SOLD')
+    .map((l) => l.investment.id)
+  const from = ids.indexOf(activeId)
+  const to = ids.indexOf(overId)
+  if (from < 0 || to < 0 || from === to) return null
+  const next = [...ids]
+  next.splice(to, 0, ...next.splice(from, 1))
+  return next
+}

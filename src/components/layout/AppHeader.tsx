@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Download, LogOut, RefreshCw, UserCircle2 } from 'lucide-react'
+import { ChevronDown, Download, LogOut, RefreshCw, Upload, UserCircle2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
@@ -15,6 +15,8 @@ export interface AppHeaderProps {
   pricesRefreshing: boolean
   priceError: string | null
   onRefreshPrices: () => void
+  onImport: () => void
+  importDisabled: boolean
   onExport: () => void
   exporting: boolean
   exportDisabled: boolean
@@ -111,6 +113,15 @@ export function AppHeader(props: AppHeaderProps) {
             icon={<RefreshCw className={`h-4 w-4 ${props.pricesRefreshing ? 'animate-spin' : ''}`} aria-hidden />}
           >
             <span className="hidden md:inline">Refresh Prices</span>
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={props.onImport}
+            disabled={props.importDisabled}
+            aria-label="Import from Excel"
+            icon={<Upload className="h-4 w-4" aria-hidden />}
+          >
+            <span className="hidden md:inline">Import</span>
           </Button>
           <Button
             variant="primary"

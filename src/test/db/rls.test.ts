@@ -302,3 +302,134 @@ describe('portfolio_notes', () => {
     expect(rows.rows).toEqual([{ id: ALICE }])
   })
 })
+
+describe('import_investments (bulk import)', () => {
+  const lot = (coin: string, overrides: Record<string, unknown> = {}) => ({
+    coin_id: coin,
+    coin_name: coin,
+    symbol: coin.slice(0, 3),
+    buy_date: '2024-01-01',
+    buy_price: '10',
+    quantity: '2',
+    buy_fee: '0',
+    long_term: false,
+    note: null,
+    sales: [],
+    ...overrides,
+  })
+  const runImport = (userId: string | null, lots: unknown[]) =>
+    asUser(db, userId, (tx) => tx.query<{ n: number }>('select public.import_investments($1::jsonb) as n', [JSON.stringify(lots)]))
+  const countCoin = (userId: string, coin: string) =>
+    asUser(db, userId, (tx) => tx.query<{ c: number }>('select count(*)::int as c from public.investments where coin_id = $1', [coin])).then(
+      (r) => r.rows[0]!.c,
+    )
+
+  it("assigns every imported lot and sale to the caller, whatever the file contained", async () => {
+    // A user_id smuggled into the payload is ignored: the function never reads it.
+    const res = await runImport(ALICE, [
+      lot('cardano', { user_id: BOB, long_term: true }),
+      lot('polkadot', { sales: [{ sold_date: '2024-02-01', quantity: '2', price: '12', fee: '1', note: 'all' }] }),
+    ])
+    expect(res.rows[0]!.n).toBe(2)
+
+    const rows = await db.query<{ user_id: string; coin_id: string; status: string; long_term: boolean }>(
+      `select user_id, coin_id, status, long_term from public.investments where coin_id in ('cardano', 'polkadot') order by coin_id`,
+    )
+    expect(rows.rows).toEqual([
+      { user_id: ALICE, coin_id: 'cardano', status: 'HOLDING', long_term: true },
+      { user_id: ALICE, coin_id: 'polkadot', status: 'SOLD', long_term: false },
+    ])
+    const sales = await db.query<{ user_id: string }>(
+      `select s.user_id from public.investment_sales s join public.investments i on i.id = s.investment_id where i.coin_id = 'polkadot'`,
+    )
+    expect(sales.rows).toEqual([{ user_id: ALICE }])
+  })
+
+  it("imported lots are invisible to other users", async () => {
+    expect(await countCoin(BOB, 'cardano')).toBe(0)
+    expect(await countCoin(ALICE, 'cardano')).toBe(1)
+  })
+
+  it('is all-or-nothing: one invalid sale rolls back the whole import', async () => {
+    await expect(
+      runImport(ALICE, [lot('chainlink'), lot('litecoin', { sales: [{ sold_date: '2024-02-01', quantity: '5', price: '1', fee: '0' }] })]),
+    ).rejects.toThrow(/exceeds the remaining quantity/)
+    expect(await countCoin(ALICE, 'chainlink')).toBe(0)
+    expect(await countCoin(ALICE, 'litecoin')).toBe(0)
+  })
+
+  it('applies the table constraints to imported rows', async () => {
+    await expect(runImport(ALICE, [lot('stellar', { buy_price: '-1' })])).rejects.toThrow(/check constraint/)
+    await expect(runImport(ALICE, [lot('Not Valid!')])).rejects.toThrow(/check constraint/)
+  })
+
+  it('never changes existing investments', async () => {
+    const before = await db.query('select id, quantity::text, buy_price::text from public.investments where id = $1', [aliceLot])
+    await runImport(ALICE, [lot('bitcoin', { buy_price: '40000', quantity: '2', buy_fee: '10' })]) // same as the existing lot
+    const after = await db.query('select id, quantity::text, buy_price::text from public.investments where id = $1', [aliceLot])
+    expect(after.rows).toEqual(before.rows)
+  })
+
+  it('cannot be called without signing in', async () => {
+    await expect(runImport(null, [lot('monero')])).rejects.toThrow(/permission denied/)
+  })
+})
+
+describe('investment order (sort_order)', () => {
+  const order = (userId: string, ids: string[]) =>
+    asUser(db, userId, (tx) =>
+      tx.query<{ id: string; sort_order: string }>('select id, sort_order::text from public.investments where id = any($1) order by sort_order desc', [ids]),
+    ).then((r) => r.rows.map((x) => x.id))
+  const reorder = (userId: string | null, ids: string[]) =>
+    asUser(db, userId, (tx) => tx.query('select public.reorder_open_investments($1::uuid[])', [ids]))
+  const openIds = (userId: string) =>
+    asUser(db, userId, (tx) =>
+      tx.query<{ id: string }>(`select id from public.investments where status = 'HOLDING' order by sort_order desc, created_at desc, id`),
+    ).then((r) => r.rows.map((x) => x.id))
+
+  it('gives a new investment the highest position (newest on top)', async () => {
+    const older = (await insertLot(ALICE, { coin_id: 'tron', coin_name: 'Tron', symbol: 'TRX' })).id
+    const newer = (await insertLot(ALICE, { coin_id: 'tezos', coin_name: 'Tezos', symbol: 'XTZ' })).id
+    expect(await order(ALICE, [older, newer])).toEqual([newer, older])
+  })
+
+  it('saves a dragged order of all open lots, and it persists', async () => {
+    const before = await openIds(ALICE)
+    const moved = [...before.slice(1), before[0]!] // drag the top lot to the bottom
+    await reorder(ALICE, moved)
+    expect(await openIds(ALICE)).toEqual(moved)
+  })
+
+  it('refuses an out-of-date list (a lot missing, a sold or foreign lot included) and saves nothing', async () => {
+    const current = await openIds(ALICE)
+    const sold = (await insertLot(ALICE, { coin_id: 'near', coin_name: 'Near', symbol: 'NEAR' })).id
+    await asUser(db, ALICE, (tx) =>
+      tx.query(`insert into public.investment_sales (investment_id, sold_date, quantity, price) values ($1, '2024-02-01', 2, 1)`, [sold]),
+    )
+    await expect(reorder(ALICE, current.slice(1))).rejects.toThrow(/list changed/)
+    await expect(reorder(ALICE, [...current, sold])).rejects.toThrow(/list changed/)
+    await expect(reorder(ALICE, [...current.slice(1), bobLot])).rejects.toThrow(/list changed/)
+    expect(await openIds(ALICE)).toEqual(current)
+  })
+
+  it('reorders lots that share a sort_order (e.g. created by one import)', async () => {
+    // As the table owner, make every open lot of Alice's tie — the state that made drag-and-drop a no-op.
+    await db.query(`update public.investments set sort_order = 42 where user_id = $1`, [ALICE])
+    const tied = await openIds(ALICE)
+    const moved = [tied[tied.length - 1]!, ...tied.slice(0, -1)] // drag the last lot to the top
+    await reorder(ALICE, moved)
+    expect(await openIds(ALICE)).toEqual(moved)
+    const values = await db.query<{ n: number }>(
+      `select count(distinct sort_order)::int as n from public.investments where user_id = $1 and status = 'HOLDING'`,
+      [ALICE],
+    )
+    expect(values.rows[0]!.n).toBe(moved.length) // positions are now unique
+  })
+
+  it("never touches another user's order, and needs a signed-in user", async () => {
+    const bobBefore = await openIds(BOB)
+    await reorder(ALICE, [...(await openIds(ALICE))].reverse())
+    expect(await openIds(BOB)).toEqual(bobBefore)
+    await expect(reorder(null, [aliceLot])).rejects.toThrow(/permission denied/)
+  })
+})

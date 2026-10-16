@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { Outlet } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { AlertTriangle, WifiOff } from 'lucide-react'
@@ -10,6 +10,7 @@ import { ErrorState } from '@/components/ui/ErrorState'
 import { useToast } from '@/components/ui/toast.context'
 import { errorMessage } from '@/lib/errors'
 import { useAuth, useUserId } from '@/features/auth/auth.context'
+import { ImportDialog } from '@/features/import/ImportDialog'
 import { useInvestments } from '@/features/investments/investments.hooks'
 import { aggregateByCoin, computeLot, summarizePortfolio } from '@/features/investments/investments.utils'
 import { noteKeys } from '@/features/notes/notes.hooks'
@@ -73,6 +74,10 @@ export function DashboardLayout() {
     }
   }
 
+  // Import: a hidden file picker opened by the header button; the dialog previews and confirms.
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [importFile, setImportFile] = useState<File | null>(null)
+
   const handleSignOut = async () => {
     try {
       await signOut()
@@ -97,6 +102,8 @@ export function DashboardLayout() {
             pricesRefreshing={prices.isFetching}
             priceError={priceError}
             onRefreshPrices={() => void prices.refresh()}
+            onImport={() => fileInputRef.current?.click()}
+            importDisabled={!investments}
             onExport={handleExport}
             exporting={exporting}
             exportDisabled={!investments || investments.length === 0}
@@ -120,6 +127,18 @@ export function DashboardLayout() {
             )}
             <Outlet />
           </PageContainer>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="hidden"
+            data-testid="import-file-input"
+            onChange={(e) => {
+              setImportFile(e.target.files?.[0] ?? null)
+              e.target.value = '' // allow choosing the same file again
+            }}
+          />
+          <ImportDialog file={importFile} existing={investments ?? []} onClose={() => setImportFile(null)} />
         </div>
       </div>
     </PortfolioContext.Provider>

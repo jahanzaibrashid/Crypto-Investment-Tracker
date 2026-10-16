@@ -28,6 +28,8 @@ export interface Investment {
   status: InvestmentStatus
   /** User-chosen: an open position intended to be held long-term. */
   longTerm: boolean
+  /** Saved position among open lots: higher = nearer the top. New lots get the highest value. */
+  sortOrder: number
   note: string | null
   createdAt: string
   updatedAt: string
@@ -59,4 +61,9 @@ export interface SaleInput {
   price: DecimalString
   fee: DecimalString
   note: string | null
+}
+
+/** A purchase lot to import, with its sales (the lot doesn't exist yet, so sales carry no investmentId). */
+export interface ImportLotInput extends InvestmentInput {
+  sales: Omit<SaleInput, 'investmentId'>[]
 }

@@ -9,7 +9,7 @@
 import { vi } from 'vitest'
 import { D } from '@/lib/decimal'
 import { ConflictError, AppError } from '@/lib/errors'
-import type { Investment, InvestmentInput, Sale, SaleInput } from '@/features/investments/investments.types'
+import type { ImportLotInput, Investment, InvestmentInput, Sale, SaleInput } from '@/features/investments/investments.types'
 import type { PortfolioNote } from '@/features/notes/notes.service'
 import type { CoinSearchResult, PriceSnapshot } from '@/features/prices/prices.types'
 
@@ -39,6 +39,9 @@ function recomputeStatus(inv: Investment) {
   inv.status = sold.eq(inv.quantity) ? 'SOLD' : 'HOLDING'
 }
 
+/** Like the database default (insert time): each new lot gets a higher sortOrder, so it lists first. */
+let nextSortOrder = 1
+
 export function seedInvestment(partial: Partial<Investment> & Pick<Investment, 'coinId' | 'coinName' | 'symbol'>): Investment {
   const inv: Investment = {
     id: id('inv'),
@@ -48,6 +51,7 @@ export function seedInvestment(partial: Partial<Investment> & Pick<Investment, '
     buyFee: '0',
     status: 'HOLDING',
     longTerm: false,
+    sortOrder: nextSortOrder++,
     note: null,
     createdAt: now(),
     updatedAt: now(),
@@ -90,6 +94,22 @@ export const investmentsServiceMock = {
     const sale: Sale = { id: id('sale'), createdAt: now(), ...input }
     inv.sales.push(sale)
     recomputeStatus(inv)
+  }),
+  importInvestments: vi.fn(async (lots: ImportLotInput[]) => {
+    for (const { sales, ...input } of lots) {
+      const inv = seedInvestment(input)
+      inv.sales = sales.map((s) => ({ id: id('sale'), createdAt: now(), investmentId: inv.id, ...s }))
+      recomputeStatus(inv)
+    }
+    return lots.length
+  }),
+  reorderOpenInvestments: vi.fn(async (ids: string[]) => {
+    const open = backend.investments.filter((i) => i.status !== 'SOLD')
+    if (ids.length !== open.length || !open.every((i) => ids.includes(i.id))) {
+      throw new AppError('The list changed in the meantime. Refresh and try again.')
+    }
+    const top = Math.max(...open.map((i) => i.sortOrder))
+    ids.forEach((id, pos) => (backend.investments.find((i) => i.id === id)!.sortOrder = top - pos))
   }),
   deleteSale: vi.fn(async (saleId: string) => {
     for (const inv of backend.investments) {

@@ -38,6 +38,9 @@ const TRIGGER_MESSAGES = [
   'Sale date cannot be before the buy date',
   'Buy date cannot be after an existing sale date',
   'Investment not found',
+  'Too many investments in one import (maximum 2000)',
+  'Too many sales for one investment (maximum 1000)',
+  'The list changed in the meantime. Refresh and try again',
 ]
 
 /**
@@ -70,6 +73,11 @@ export function mapDbError(error: PostgrestLikeError | null | undefined, fallbac
     case '42P01':
       return new AppError(
         'Database tables not found. Run supabase/migrations/001_initial_schema.sql in the Supabase SQL Editor for this project, then reload.',
+      )
+    case '42703': // undefined column: the app is newer than the database schema
+    case 'PGRST202': // database function not found: the app is newer than the database
+      return new AppError(
+        'The database is missing a recent update. Run `npm run db:migrate` (or the newest files in supabase/migrations/ in the Supabase SQL Editor), then reload.',
       )
     case 'PGRST116':
       return new AppError('The record was not found. It may have been deleted.')
