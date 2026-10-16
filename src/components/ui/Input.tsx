@@ -1,4 +1,5 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type Ref, type TextareaHTMLAttributes } from 'react'
+import { useId, useState, type InputHTMLAttributes, type ReactNode, type Ref, type TextareaHTMLAttributes } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { controlBorder, controlClass } from './control'
 
@@ -49,9 +50,11 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement>, Field
   leading?: ReactNode
 }
 
-export function Input({ label, error, hint, aside, hideLabel, active, id, className, leading, ref, ...rest }: InputProps) {
+export function Input({ label, error, hint, aside, hideLabel, active, id, className, leading, ref, type, ...rest }: InputProps) {
   const autoId = useId()
   const inputId = id ?? autoId
+  const isPassword = type === 'password'
+  const [showPassword, setShowPassword] = useState(false)
   return (
     <FieldShell id={inputId} label={label} error={error} hint={hint} aside={aside} hideLabel={hideLabel}>
       <div className="relative">
@@ -61,20 +64,34 @@ export function Input({ label, error, hint, aside, hideLabel, active, id, classN
         <input
           ref={ref}
           id={inputId}
+          type={isPassword && showPassword ? 'text' : type}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
           className={cn(
             controlClass,
             'h-9',
             leading ? 'pl-7' : undefined,
+            isPassword && 'pr-9',
             // iOS Safari gives native date inputs a fixed intrinsic width and centered text,
             // which overflows narrow grid cells; let them fill the cell like other inputs.
-            rest.type === 'date' && 'appearance-none text-left [&::-webkit-date-and-time-value]:text-left',
+            type === 'date' && 'appearance-none text-left [&::-webkit-date-and-time-value]:text-left',
             controlBorder(error, active),
             className,
           )}
           {...rest}
         />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-pressed={showPassword}
+            title={showPassword ? 'Hide password' : 'Show password'}
+            className="absolute inset-y-0 right-0 flex w-9 items-center justify-center rounded-r-lg text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
+          </button>
+        )}
       </div>
     </FieldShell>
   )

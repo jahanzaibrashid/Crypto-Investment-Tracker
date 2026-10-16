@@ -11,7 +11,7 @@
  *   npm run db:status                  which migrations are applied
  *   npm run db:baseline                one-time setup for a database created by hand in the SQL Editor
  *
- * Connection settings come from .env.local (the password is never printed):
+ * Connection settings come from .env (the password is never printed):
  *   VITE_SUPABASE_URL      the project URL the app already uses → project ref
  *   SUPABASE_DB_PASSWORD   the database password, as-is (no URL encoding needed)
  *   SUPABASE_DB_HOST       optional: the Session pooler host, for networks without IPv6
@@ -38,12 +38,12 @@ function databaseUrl() {
   } catch {
     ref = undefined
   }
-  if (!ref) fail('VITE_SUPABASE_URL in .env.local must be your project URL, like https://<project-ref>.supabase.co')
+  if (!ref) fail('VITE_SUPABASE_URL in .env must be your project URL, like https://<project-ref>.supabase.co')
 
   const password = env.SUPABASE_DB_PASSWORD
   if (!password) {
     fail(
-      'SUPABASE_DB_PASSWORD is not set in .env.local.\n' +
+      'SUPABASE_DB_PASSWORD is not set in .env.\n' +
         '  Add your database password (Supabase → Project Settings → Database → reset it there if you forgot it):\n' +
         '  SUPABASE_DB_PASSWORD=your-password',
     )
@@ -73,7 +73,7 @@ if (result.error) fail(`Could not start the Supabase CLI: ${result.error.message
 if (result.status !== 0 && !process.env.SUPABASE_DB_HOST) {
   console.error(
     '\nIf the error above is about connecting (timeout, "no route to host", "network is unreachable"), your network\n' +
-      'probably has no IPv6. Supabase → Connect → Session pooler: copy the host and add it to .env.local:\n' +
+      'probably has no IPv6. Supabase → Connect → Session pooler: copy the host and add it to .env:\n' +
       '  SUPABASE_DB_HOST=aws-0-<region>.pooler.supabase.com\n',
   )
 }

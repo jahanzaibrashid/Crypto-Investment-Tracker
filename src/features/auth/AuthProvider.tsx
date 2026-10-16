@@ -39,6 +39,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
       if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
+      // The new password was saved (updateUser), so the recovery flow is over.
+      if (event === 'USER_UPDATED') setPasswordRecovery(false)
       if (event === 'SIGNED_OUT') {
         if (!manualSignOut.current && currentUserId.current) {
           setNotice('Your session has expired. Please sign in again.')

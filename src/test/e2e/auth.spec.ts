@@ -15,7 +15,7 @@ test.describe('authentication', () => {
     await installMockApi(page, state)
     await page.goto('/login')
     await page.getByLabel('Email').fill('alice@example.com')
-    await page.getByLabel('Password').fill('wrong-pass1')
+    await page.getByLabel('Password', { exact: true }).fill('wrong-pass1')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await expect(page.getByRole('alert')).toContainText('Incorrect email or password')
   })

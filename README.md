@@ -86,15 +86,14 @@ A single-page web app for tracking cryptocurrency purchases and sales in USD. It
 2. **Create your env file**
 
    ```bash
-   cp .env.example .env.local
+   cp .env.example .env
    ```
 
-   Open `.env.local` and fill in at least:
+   Open `.env` and fill in at least:
 
    ```bash
    VITE_SUPABASE_URL=https://<your-project-ref>.supabase.co
    VITE_SUPABASE_ANON_KEY=<anon / publishable key>
-   VITE_SITE_URL=http://localhost:3000
    ```
 
    Both Supabase values are under Supabase → Project Settings → API. All variables are described in [Environment variables](#environment-variables).
@@ -109,7 +108,7 @@ A single-page web app for tracking cryptocurrency purchases and sales in USD. It
 
    Open <http://localhost:3000>, create an account and sign in. Code changes reload instantly.
 
-If the Supabase variables are missing, the app shows a "not configured" screen listing them. It never falls back to fake data. After changing `.env.local`, stop the dev server (Ctrl+C) and start it again.
+If the Supabase variables are missing, the app shows a "not configured" screen listing them. It never falls back to fake data. After changing `.env`, stop the dev server (Ctrl+C) and start it again.
 
 ### Scripts
 
@@ -127,8 +126,8 @@ If the Supabase variables are missing, the app shows a "not configured" screen l
 
 ### Common problems
 
-- **"… is not configured" screen:** `.env.local` is missing, has a typo in a variable name, or the dev server wasn't restarted after editing it.
-- **Port 3000 is already in use:** stop the other process, or run `npm run dev -- --port 3001`. Then also use that port in `VITE_SITE_URL` and in Supabase's Redirect URLs.
+- **"… is not configured" screen:** `.env` is missing, has a typo in a variable name, or the dev server wasn't restarted after editing it.
+- **Port 3000 is already in use:** stop the other process, or run `npm run dev -- --port 3001`. Then also allow that port in Supabase's Redirect URLs.
 - **No confirmation email after signing up:** Supabase's built-in email sender is rate-limited and meant for testing. Turn off **Confirm email** for personal use, or set up custom SMTP. See step 3 of [Supabase setup](#supabase-setup).
 - **Email link opens the wrong site:** check `VITE_SITE_URL` and Supabase → Authentication → URL Configuration.
 
@@ -140,9 +139,11 @@ If the Supabase variables are missing, the app shows a "not configured" screen l
 | `VITE_SUPABASE_ANON_KEY` | yes | The **anon / publishable** key. It is public by design; RLS protects the data. **Never** use the service-role key here. |
 | `VITE_MARKET_DATA_MODE` | no | `direct` (default) or `proxy`. See CoinGecko below. |
 | `VITE_COINGECKO_API_KEY` | no | Demo key, used only in `direct` mode. **Every `VITE_*` value is visible in the browser bundle.** |
-| `VITE_SITE_URL` | no | The app's public address (`http://localhost:3000` locally, your Vercel URL in production). Links in confirmation and password-reset emails point here. If empty, they use the address the app is open on. It must also be allowed in Supabase → Authentication → URL Configuration. |
+| `VITE_SITE_URL` | no | **Leave empty (recommended).** Links in confirmation and password-reset emails then use the address the app is open on, so the same config works on localhost and Vercel. Set it only to force one fixed address. Either way, the address must be allowed in Supabase → Authentication → URL Configuration. |
 
-`.env`, `.env.local` and the other `.env.*` files are git-ignored. Only `.env.example` (names only) is committed.
+Use a single `.env` file. It is git-ignored, as are all other `.env.*` files. Only `.env.example` (names only) is committed.
+
+Localhost and the Vercel deployment can share one Supabase project. Use the same `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env` and in Vercel, and the same accounts and data then work in both. Anything you change on localhost changes the live data too.
 
 ## Supabase setup
 
@@ -154,8 +155,8 @@ If the Supabase variables are missing, the app shows a "not configured" screen l
    - If "Confirm email" is on, new users must click the emailed link before signing in. The UI handles both cases.
    - Supabase's built-in email sender only sends a few emails per hour and is meant for testing. For real users, set up custom SMTP (Authentication → Emails → SMTP Settings, for example with Resend or Brevo). For personal use, you can turn "Confirm email" off instead.
 4. **Authentication → URL Configuration:**
-   - Site URL: `http://localhost:3000` (production: your Vercel URL).
-   - Redirect URLs: `http://localhost:3000/reset-password`, `http://localhost:3000/login`, and the same paths on your production domain.
+   - Site URL: your Vercel URL (`http://localhost:3000` if you only run locally). Supabase falls back to it when a redirect isn't allowed.
+   - Redirect URLs: `http://localhost:3000/**` and `https://<your-app>.vercel.app/**`, so email links work from both.
 5. **Verify RLS:** Table Editor should show "RLS enabled" on `profiles`, `investments`, `investment_sales` and `portfolio_notes`.
    - For a manual check, create two users, add data as each, and confirm neither can see the other's rows.
 6. *(Optional)* **Realtime:** the migration adds `portfolio_notes` to the `supabase_realtime` publication.
@@ -167,7 +168,7 @@ Instead of pasting SQL into the dashboard, run new files in `supabase/migrations
 
 **One-time setup**
 
-1. Add your database password to `.env.local`, as-is (it is git-ignored and never sent to the browser). The script builds the connection from it and the `VITE_SUPABASE_URL` you already have:
+1. Add your database password to `.env`, as-is (it is git-ignored and never sent to the browser). The script builds the connection from it and the `VITE_SUPABASE_URL` you already have:
 
    ```bash
    SUPABASE_DB_PASSWORD=your-database-password
@@ -367,10 +368,12 @@ No test depends on live prices or external services.
 ### Vercel
 1. Import the repository. Framework preset **Vite**; root is the repository root.
    - Build command `npm run build`, output directory `dist`. Both are already set in `vercel.json`.
-2. Add environment variables (Production and Preview): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_SITE_URL` (your Vercel URL), optionally `VITE_MARKET_DATA_MODE` and `VITE_COINGECKO_API_KEY`.
+2. Add environment variables (Production and Preview). Vercel does not read your local `.env`, so copy these values from it: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, and optionally `VITE_MARKET_DATA_MODE` and `VITE_COINGECKO_API_KEY`. Leave `VITE_SITE_URL` unset.
+   - Never add `SUPABASE_DB_PASSWORD` or a service-role key to Vercel.
+   - To compare with the terminal: `npx vercel link` then `npx vercel env ls`. Avoid `vercel env pull .env`, which would overwrite your `.env`.
    - `VITE_*` values are built into the app, so redeploy after adding or changing one.
 3. Deploy. `vercel.json` rewrites all non-asset paths to `index.html` so client-side routes (`/login`, `/reset-password`) work. It also adds basic security headers.
-4. In Supabase → Authentication → URL Configuration, set the Site URL to the Vercel URL and add `https://<domain>/reset-password` and `https://<domain>/login`.
+4. In Supabase → Authentication → URL Configuration, set the Site URL to the Vercel URL and add `https://<domain>/**` to the Redirect URLs (keep `http://localhost:3000/**`).
 5. Check the live app: register, add a purchase, confirm prices load, export, log out and back in.
 
 Updates: push to the main branch (Vercel redeploys). For schema changes, add a new numbered file under `supabase/migrations/` and run `supabase db push`.

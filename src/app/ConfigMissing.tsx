@@ -17,7 +17,7 @@ export function ConfigMissing({ missing }: { missing: string[] }) {
           ))}
         </ul>
         <p className="text-sm text-muted-foreground">
-          Copy <code>.env.example</code> to <code>.env.local</code>, add your Supabase project URL and anon key, then restart the dev
+          Copy <code>.env.example</code> to <code>.env</code>, add your Supabase project URL and anon key, then restart the dev
           server. On Vercel, add them under Project → Settings → Environment Variables and redeploy. See README → “Environment variables”.
         </p>
       </section>

@@ -1,7 +1,8 @@
 import { lazy, Suspense, type ReactNode } from 'react'
-import { Navigate, Route, Routes } from 'react-router'
+import { Navigate, Route, Routes, useLocation } from 'react-router'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { AuthGuard, GuestOnly } from '@/features/auth/AuthGuard'
+import { useAuth } from '@/features/auth/auth.context'
 import { LoginPage, RegisterPage } from '@/features/auth/LoginPage'
 import { ForgotPasswordPage, ResetPasswordPage } from '@/features/auth/PasswordResetPages'
 
@@ -15,6 +16,12 @@ const NotesPage = lazy(() => import('@/features/notes/NotesPage').then((m) => ({
 const page = (el: ReactNode) => <Suspense fallback={<LoadingState label="Loading…" />}>{el}</Suspense>
 
 export function AppRoutes() {
+  const { isPasswordRecovery } = useAuth()
+  const { pathname } = useLocation()
+
+  // A recovery link can land on another page (e.g. Supabase's Site URL fallback); always finish on the reset form.
+  if (isPasswordRecovery && pathname !== '/reset-password') return <Navigate to="/reset-password" replace />
+
   return (
     <Routes>
       <Route element={<GuestOnly />}>

@@ -5,7 +5,7 @@ const PORT = 4180
 /**
  * End-to-end tests run the real app against a mocked Supabase + CoinGecko
  * (see src/test/e2e/mock-api.ts). They never hit a live backend or live prices.
- * The fake Supabase URL below overrides any .env.local values for this server.
+ * The fake Supabase URL below overrides any .env values for this server.
  */
 export default defineConfig({
   testDir: './src/test/e2e',
