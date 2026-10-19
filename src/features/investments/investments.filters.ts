@@ -56,20 +56,23 @@ export function soldPeriodRange(period: SoldPeriod, today = todayIso()): { from:
 }
 
 /**
- * Dropdown options for "Sold in": all time, the rolling windows, then every month from January
- * of the earliest year with a sale up to the current month (newest first). The current month
- * is always included, so the list grows by itself as time passes.
+ * Dropdown options for "Sold in": all time, the rolling windows, then every month from the
+ * user's first closed sale up to the current month (newest first). The months follow the user's
+ * own history: an account without fully sold investments sees only the current month, and the
+ * list grows by itself as time passes. Months use the same date as the filter: the sale that
+ * closed a fully sold investment.
  */
 export function soldPeriodOptions(lots: LotMetrics[], today = todayIso()): { value: SoldPeriod; label: string }[] {
   const [thisYear, thisMonth] = today.split('-').map(Number) as [number, number]
-  let firstYear = thisYear
+  let first = today.slice(0, 7) // YYYY-MM
   for (const lot of lots) {
-    const sold = lastSoldDate(lot)
-    if (sold) firstYear = Math.min(firstYear, Number(sold.slice(0, 4)))
+    const closed = lot.status === 'SOLD' ? lastSoldDate(lot) : null
+    if (closed && closed.slice(0, 7) < first) first = closed.slice(0, 7)
   }
+  const [firstYear, firstMonth] = first.split('-').map(Number) as [number, number]
   const months: { value: SoldPeriod; label: string }[] = []
   let [y, m] = [thisYear, thisMonth]
-  while (y >= firstYear) {
+  while (y > firstYear || (y === firstYear && m >= firstMonth)) {
     const label = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     months.push({ value: `${y}-${String(m).padStart(2, '0')}` as SoldPeriod, label })
     m -= 1

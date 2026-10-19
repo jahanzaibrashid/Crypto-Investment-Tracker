@@ -32,16 +32,19 @@ describe('soldPeriodRange', () => {
 })
 
 describe('soldPeriodOptions', () => {
-  it('lists every month from January of the earliest sale year up to the current month, newest first', () => {
-    const values = soldPeriodOptions([lot('2025-06-10')], TODAY).map((o) => o.value)
+  it("lists every month from the user's first closed sale up to the current month, newest first", () => {
+    const values = soldPeriodOptions([lot('2025-06-10'), lot(null)], TODAY).map((o) => o.value)
     expect(values.slice(0, 5)).toEqual(['', 'LAST_WEEK', 'LAST_MONTH', 'LAST_YEAR', '2026-10'])
-    expect(values.at(-1)).toBe('2025-01')
-    expect(values).toHaveLength(4 + 10 + 12) // Oct…Jan 2026 + all of 2025
+    expect(values.at(-1)).toBe('2025-06')
+    expect(values).toHaveLength(4 + 10 + 7) // Oct…Jan 2026 + Dec…Jun 2025
   })
-  it('always includes the current year when nothing is sold yet', () => {
-    const options = soldPeriodOptions([lot(null)], TODAY)
-    expect(options[4]).toEqual({ value: '2026-10', label: 'October 2026' })
-    expect(options.at(-1)).toEqual({ value: '2026-01', label: 'January 2026' })
+  it('shows only the current month to a user with no fully sold investments (e.g. a new account)', () => {
+    expect(soldPeriodOptions([], TODAY).slice(4)).toEqual([{ value: '2026-10', label: 'October 2026' }])
+    expect(soldPeriodOptions([lot(null)], TODAY).slice(4)).toEqual([{ value: '2026-10', label: 'October 2026' }])
+  })
+  it('ignores partial sales: they never match a month in the filter', () => {
+    const partlySoldLastYear = lot('2025-03-01', { qty: '2', sold: '1' })
+    expect(soldPeriodOptions([partlySoldLastYear], TODAY).slice(4).map((o) => o.value)).toEqual(['2026-10'])
   })
 })
 

@@ -7,7 +7,6 @@
  *   15px  main values and the P/L $ pill (semibold)
  *   lines stack with no gap and leading-snug, to keep rows compact
  */
-import { Badge } from '@/components/ui/Badge'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { PLPill } from '@/components/ui/PLPill'
@@ -32,13 +31,18 @@ export function CoinCell({ lot }: { lot: LotMetrics }) {
         <Tooltip text={inv.coinName}>{inv.symbol}</Tooltip>
         <span className="sr-only"> {inv.coinName}</span>
       </div>
-      {/* Hidden on phones to keep the column narrow; the exchange is in the details panel there. */}
+      {/* Where it was bought. Phones: small grey text, so the column stays narrow. ≥ sm: the
+          same look as an "info" Badge. One element, so the name isn't in the row twice. */}
       {inv.exchange && (
-        <div className="hidden sm:block">
-          <Badge tone="info" className="mt-1 max-w-24 truncate" title={`Bought on ${inv.exchange}`}>
-            {inv.exchange}
-          </Badge>
-        </div>
+        <span
+          title={`Bought on ${inv.exchange}`}
+          className={cn(
+            'block max-w-16 truncate text-[11px] leading-tight text-muted-foreground',
+            'sm:mt-1 sm:inline-block sm:max-w-24 sm:rounded-full sm:border sm:border-primary/40 sm:bg-primary/8 sm:px-2 sm:py-0.5 sm:font-medium sm:text-primary-text',
+          )}
+        >
+          {inv.exchange}
+        </span>
       )}
     </div>
   )
