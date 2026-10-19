@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { D } from '@/lib/decimal'
-import { formatDate, formatPercent, formatPrice, formatPriceCompact, formatQuantity, formatShortDate, formatUsd, parseShortDate, todayIso } from '@/lib/formatters'
+import { DATE_FORMAT_EXAMPLE, formatDate, formatPercent, formatPrice, formatQuantity, formatUsd, parseDate, todayIso } from '@/lib/formatters'
 
 describe('formatUsd / formatPrice', () => {
   it('formats normal amounts with 2 decimals and grouping', () => {
@@ -26,13 +26,22 @@ describe('formatUsd / formatPrice', () => {
   })
 })
 
-describe('formatPriceCompact', () => {
+describe('formatPrice', () => {
   it('drops .00 for whole-dollar prices only', () => {
-    expect(formatPriceCompact('2500')).toBe('$2,500')
-    expect(formatPriceCompact('2500.000000000000')).toBe('$2,500')
-    expect(formatPriceCompact('2032.5')).toBe('$2,032.50')
-    expect(formatPriceCompact('0.00001234')).toBe('$0.00001234')
-    expect(formatPriceCompact('0')).toBe('$0.00')
+    expect(formatPrice('2300')).toBe('$2,300')
+    expect(formatPrice('2500.000000000000')).toBe('$2,500')
+    expect(formatPrice('2300.5')).toBe('$2,300.50')
+    expect(formatPrice('2300.55')).toBe('$2,300.55')
+    expect(formatPrice('0.00001234')).toBe('$0.00001234')
+    expect(formatPrice('0')).toBe('$0.00')
+  })
+  it('formatUsd can drop zero cents for whole-dollar amounts', () => {
+    expect(formatUsd('335', { dropZeroCents: true })).toBe('$335')
+    expect(formatUsd('335.5', { dropZeroCents: true })).toBe('$335.50')
+    expect(formatUsd('996', { signed: true, dropZeroCents: true })).toBe('+$996')
+    expect(formatUsd('-12', { dropZeroCents: true })).toBe('-$12')
+    expect(formatUsd('0', { dropZeroCents: true })).toBe('$0.00')
+    expect(formatUsd('335')).toBe('$335.00') // default unchanged
   })
 })
 
@@ -58,23 +67,28 @@ describe('formatPercent', () => {
 
 describe('dates', () => {
   it('formats compact table dates like the spreadsheet (18-Sep-26)', () => {
-    expect(formatShortDate('2026-09-18')).toBe('18-Sep-26')
-    expect(formatShortDate('2025-01-02')).toBe('2-Jan-25')
+    expect(formatDate('2026-09-18')).toBe('18-Sep-26')
+    expect(formatDate('2025-01-02')).toBe('2-Jan-25')
   })
   it('parses typed short dates', () => {
-    expect(parseShortDate('1-Sep-26')).toBe('2026-09-01')
-    expect(parseShortDate(' 01 september 2026 ')).toBe('2026-09-01')
-    expect(parseShortDate('18/Oct/2025')).toBe('2025-10-18')
-    expect(parseShortDate('2026-9-1')).toBe('2026-09-01')
-    expect(parseShortDate('31-Feb-26')).toBeNull()
-    expect(parseShortDate('1-Foo-26')).toBeNull()
-    expect(parseShortDate('1-Marvel-26')).toBeNull()
-    expect(parseShortDate('5-Decoy-25')).toBeNull()
-    expect(parseShortDate('1-Sept-26')).toBe('2026-09-01')
-    expect(parseShortDate('yesterday')).toBeNull()
+    expect(parseDate('1-Sep-26')).toBe('2026-09-01')
+    expect(parseDate(' 01 september 2026 ')).toBe('2026-09-01')
+    expect(parseDate('18/Oct/2025')).toBe('2025-10-18')
+    expect(parseDate('2026-9-1')).toBe('2026-09-01')
+    expect(parseDate('31-Feb-26')).toBeNull()
+    expect(parseDate('1-Foo-26')).toBeNull()
+    expect(parseDate('1-Marvel-26')).toBeNull()
+    expect(parseDate('5-Decoy-25')).toBeNull()
+    expect(parseDate('1-Sept-26')).toBe('2026-09-01')
+    expect(parseDate('yesterday')).toBeNull()
   })
   it('formats DATE values without timezone shift', () => {
-    expect(formatDate('2024-01-01')).toBe('Jan 1, 2024')
+    expect(formatDate('2024-01-01')).toBe('1-Jan-24')
+    expect(formatDate(new Date(2024, 0, 1, 23, 59))).toBe('1-Jan-24')
+  })
+  it('parseDate reads back whatever formatDate shows (inputs keep working if the format changes)', () => {
+    for (const iso of ['2026-09-01', '2024-02-29', '2031-12-31']) expect(parseDate(formatDate(iso))).toBe(iso)
+    expect(parseDate(DATE_FORMAT_EXAMPLE)).toBe('2026-09-01')
   })
   it('todayIso uses the local calendar date', () => {
     expect(todayIso(new Date(2024, 1, 29, 23, 59))).toBe('2024-02-29')

@@ -126,7 +126,7 @@ export function makeInvestmentFormSchema(opts: { firstSaleDate?: string | null; 
       decimals: LIMITS.quantityDecimals,
       sign: 'positive',
       min: () => sold,
-      minMessage: (min) => `Quantity can't be less than the ${formatQuantity(min)} already sold`,
+      minMessage: (min) => `Minimum is ${formatQuantity(min)} (already sold)`,
     }),
     buyFee: decimalField({
       label: 'Fee',
@@ -185,7 +185,7 @@ export function makeSaleFormSchema(lot: { buyDate: string; remainingQuantity: st
       decimals: LIMITS.quantityDecimals,
       sign: 'positive',
       max: () => lot.remainingQuantity,
-      maxMessage: (max) => `You can sell at most ${formatQuantity(max)} (remaining quantity)`,
+      maxMessage: (max) => `Maximum is ${formatQuantity(max)} (quantity held)`,
     }),
     price: decimalField({
       label: 'Sale price',

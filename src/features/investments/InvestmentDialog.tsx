@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Dialog } from '@/components/ui/Dialog'
 import { useToast } from '@/components/ui/toast.context'
 import { errorMessage } from '@/lib/errors'
-import { formatShortDate } from '@/lib/formatters'
+import { formatDate, formatQuantity } from '@/lib/formatters'
 import { FormAlert } from '@/components/ui/Alert'
 import { InvestmentForm } from './InvestmentForm'
 import { useInvestmentMutations } from './investments.hooks'
@@ -50,7 +50,12 @@ export function InvestmentDialog({ open, onClose, lot }: InvestmentDialogProps) 
       onClose={close}
       dismissible={!pending}
       title={editing ? 'Edit investment' : 'Add investment'}
-      description={editing ? `${editing.coinName} (${editing.symbol}) bought ${formatShortDate(editing.buyDate)}`: 'Record a cryptocurrency purchase in USD.'}
+      description={
+        editing
+          ? `${editing.coinName} (${editing.symbol}): ${formatQuantity(editing.quantity)} ${editing.symbol} bought on ${formatDate(editing.buyDate)}.`
+          : 'Record a coin purchase. Prices are in USD.'
+      }
+      size="lg"
     >
       {error && <FormAlert tone="error">{error}</FormAlert>}
       {open && (

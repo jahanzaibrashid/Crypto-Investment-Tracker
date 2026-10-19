@@ -6,7 +6,7 @@ import { Dialog } from '@/components/ui/Dialog'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { useToast } from '@/components/ui/toast.context'
 import { errorMessage } from '@/lib/errors'
-import { formatShortDate } from '@/lib/formatters'
+import { formatDate } from '@/lib/formatters'
 import { useInvestmentMutations } from '@/features/investments/investments.hooks'
 import type { Investment } from '@/features/investments/investments.types'
 import type { ImportRowError, ParsedLot } from './excel-import.service'
@@ -104,7 +104,7 @@ export function ImportDialog({ file, existing, onClose }: { file: File | null; e
     }
   }
 
-  const lotLabel = (p: ParsedLot) => `Row ${p.row}: ${p.lot.symbol} bought ${formatShortDate(p.lot.buyDate)}`
+  const lotLabel = (p: ParsedLot) => `Row ${p.row}: ${p.lot.symbol} bought ${formatDate(p.lot.buyDate)}`
 
   return (
     <Dialog

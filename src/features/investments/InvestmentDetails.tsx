@@ -84,6 +84,9 @@ export function InvestmentDetails({ lot, onClose }: { lot: LotMetrics | null; on
                         {lot.unrealizedPL ? (
                           <span className="inline-flex gap-1.5">
                             <PLValue value={lot.unrealizedPL} />
+                            <span className="text-muted-foreground" aria-hidden>
+                              /
+                            </span>
                             <PLValue value={lot.unrealizedROI} format="percent" icon={false} />
                           </span>
                         ) : (
@@ -96,6 +99,9 @@ export function InvestmentDetails({ lot, onClose }: { lot: LotMetrics | null; on
                     {lot.sales.length ? (
                       <span className="inline-flex gap-1.5">
                         <PLValue value={lot.realizedPL} />
+                        <span className="text-muted-foreground" aria-hidden>
+                          /
+                        </span>
                         <PLValue value={lot.realizedROI} format="percent" icon={false} />
                       </span>
                     ) : (

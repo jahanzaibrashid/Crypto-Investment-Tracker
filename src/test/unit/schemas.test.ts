@@ -73,7 +73,7 @@ describe('makeInvestmentFormSchema (lot with sales)', () => {
   const schema = makeInvestmentFormSchema({ firstSaleDate: '2024-03-01', soldQuantity: '0.01' })
 
   it('rejects quantity below what was already sold', () => {
-    expect(errorsOf(schema.safeParse({ ...valid, quantity: '0.005' })).quantity).toMatch(/0.01 already sold/)
+    expect(errorsOf(schema.safeParse({ ...valid, quantity: '0.005' })).quantity).toMatch(/Minimum is 0.01 \(already sold\)/)
     expect(schema.safeParse({ ...valid, quantity: '0.01' }).success).toBe(true)
   })
 

@@ -1,13 +1,13 @@
 import { BadgeDollarSign, MoreHorizontal, Pencil, StickyNote, Trash2 } from 'lucide-react'
 import { DropdownMenu } from '@/components/ui/DropdownMenu'
-import { formatShortDate } from '@/lib/formatters'
+import { formatDate } from '@/lib/formatters'
 import type { LotMetrics } from './investments.utils'
 
 export type InvestmentAction = 'view' | 'edit' | 'note' | 'sell' | 'delete'
 
 /** Row actions behind a single "⋯" button. (Viewing details = clicking the row.) */
 export function InvestmentActions({ lot, onAction }: { lot: LotMetrics; onAction: (action: InvestmentAction, lot: LotMetrics) => void }) {
-  const label = `${lot.investment.coinName} bought ${formatShortDate(lot.investment.buyDate)}`
+  const label = `${lot.investment.coinName} bought ${formatDate(lot.investment.buyDate)}`
   const icon = 'h-4 w-4 shrink-0'
   return (
     // Clicks and key presses inside the menu must not also open the row's details

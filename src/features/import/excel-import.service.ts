@@ -13,7 +13,7 @@
 import * as XLSX from 'xlsx'
 import { D, type Dec } from '@/lib/decimal'
 import { AppError } from '@/lib/errors'
-import { formatShortDate, parseShortDate } from '@/lib/formatters'
+import { formatDate, parseDate } from '@/lib/formatters'
 import { LIMITS } from '@/lib/constants'
 import { investmentFormSchema, makeSaleFormSchema, toInvestmentInput, toSaleInput } from '@/features/investments/investments.schemas'
 import type { ImportLotInput, Investment } from '@/features/investments/investments.types'
@@ -111,7 +111,7 @@ function readDate(v: Raw): string {
     return new Date(ms).toISOString().slice(0, 10)
   }
   const s = String(v).trim()
-  return parseShortDate(s) ?? s
+  return parseDate(s) ?? s
 }
 
 // ---------------------------------------------------------------------------
@@ -235,8 +235,8 @@ export function parseImportWorkbook(data: ArrayBuffer): ParsedImport {
             row: r.row,
             message:
               candidates.length === 0
-                ? `No matching purchase of ${coinId || 'this coin'} bought ${buyDate ? formatShortDate(buyDate) : '(no date)'}`
-                : `Several purchases of ${coinId} were bought on ${formatShortDate(buyDate)}; add a Lot ID column to say which one was sold`,
+                ? `No matching purchase of ${coinId || 'this coin'} bought ${buyDate ? formatDate(buyDate) : '(no date)'}`
+                : `Several purchases of ${coinId} were bought on ${formatDate(buyDate)}; add a Lot ID column to say which one was sold`,
           })
           continue
         }

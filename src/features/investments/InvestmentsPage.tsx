@@ -96,7 +96,7 @@ export function InvestmentsPage() {
           ) : (
             <>
               <div className="flex flex-col gap-3 px-4 py-4 sm:px-5">
-                <InvestmentFilters value={filters} onChange={setFilters} resultCount={visibleLots.length} totalCount={lots.length} />
+                <InvestmentFilters value={filters} onChange={setFilters} resultCount={visibleLots.length} totalCount={lots.length} lots={lots} />
                 <StatusLegend lots={lots} active={filters.status} onSelect={(status) => setFilters({ ...filters, status })} />
               </div>
               {visibleLots.length === 0 ? (

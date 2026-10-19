@@ -1,7 +1,7 @@
-import { useId, useRef, useState } from 'react'
+import { useId, useRef, useState, type ReactNode } from 'react'
 import { CalendarDays } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { formatShortDate, parseShortDate } from '@/lib/formatters'
+import { DATE_FORMAT_EXAMPLE, formatDate, parseDate } from '@/lib/formatters'
 import { controlBorder, controlClass } from './control'
 import { FieldShell } from './Input'
 
@@ -14,17 +14,22 @@ interface DateInputProps {
   error?: string
   min?: string
   max?: string
+  /** Defaults to "Format: <example>"; pass null to hide it (e.g. in a compact filter bar). */
+  hint?: ReactNode
+  /** Highlights a field holding a non-default value (e.g. an applied filter). */
+  active?: boolean
 }
 
 /**
- * Date field that displays and accepts the app's short format ("1-Sep-26"), unlike the
- * native date input whose format is fixed by the browser locale. Typing also accepts
+ * Date field that displays and accepts the app's date format (formatDate in lib/formatters),
+ * unlike the native date input whose format is fixed by the browser locale. Typing also accepts
  * "1-Sep-2026" and "2026-09-01"; the 📅 button opens the browser's calendar picker.
+ * Use this for every date field so all of them follow the same format.
  */
-export function DateInput({ label, value, onChange, onBlur, error, min, max }: DateInputProps) {
+export function DateInput({ label, value, onChange, onBlur, error, min, max, hint = `Format: ${DATE_FORMAT_EXAMPLE}`, active }: DateInputProps) {
   const id = useId()
   const nativeRef = useRef<HTMLInputElement>(null)
-  const display = (v: string) => (parseShortDate(v) ? formatShortDate(v) : v)
+  const display = (v: string) => (parseDate(v) ? formatDate(v) : v)
   const [text, setText] = useState(() => display(value))
   const [synced, setSynced] = useState(value)
   // Value changed from outside (calendar pick, form reset): show it in short format.
@@ -34,10 +39,10 @@ export function DateInput({ label, value, onChange, onBlur, error, min, max }: D
   }
 
   const commit = () => {
-    const iso = parseShortDate(text)
+    const iso = parseDate(text)
     const next = iso ?? text.trim()
     setSynced(next)
-    if (iso) setText(formatShortDate(iso))
+    if (iso) setText(formatDate(iso))
     onChange(next)
     onBlur?.()
   }
@@ -54,13 +59,13 @@ export function DateInput({ label, value, onChange, onBlur, error, min, max }: D
   }
 
   return (
-    <FieldShell id={id} label={label} error={error} hint={error ? undefined : 'Format: 1-Sep-26'}>
+    <FieldShell id={id} label={label} error={error} hint={error ? undefined : hint}>
       <div className="relative">
         <input
           id={id}
           type="text"
           autoComplete="off"
-          placeholder="e.g. 1-Sep-26"
+          placeholder={`e.g. ${DATE_FORMAT_EXAMPLE}`}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onBlur={commit}
@@ -68,8 +73,8 @@ export function DateInput({ label, value, onChange, onBlur, error, min, max }: D
             if (e.key === 'Enter') commit()
           }}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${id}-error` : `${id}-hint`}
-          className={cn(controlClass, 'h-9 pr-10', controlBorder(error))}
+          aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+          className={cn(controlClass, 'h-9 pr-10', controlBorder(error, active))}
         />
         <button
           type="button"
@@ -85,7 +90,7 @@ export function DateInput({ label, value, onChange, onBlur, error, min, max }: D
           type="date"
           tabIndex={-1}
           aria-hidden
-          value={parseShortDate(value) ?? ''}
+          value={parseDate(value) ?? ''}
           min={min}
           max={max}
           onChange={(e) => {

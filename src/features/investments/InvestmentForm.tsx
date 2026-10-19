@@ -45,12 +45,12 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, submitLab
     mode: 'onTouched',
   })
 
-  const [price, quantity, fee] = useWatch({ control, name: ['buyPrice', 'quantity', 'buyFee'] })
+  // Fees are hidden for now: buyFee stays in the form values (0 for new lots, the saved value
+  // when editing), so turning the field back on later needs no data or schema change.
+  const [price, quantity] = useWatch({ control, name: ['buyPrice', 'quantity'] })
   const p = safeDecimal(price)
   const q = safeDecimal(quantity)
-  const f = (fee ?? '').trim() === '' ? new D(0) : safeDecimal(fee)
   const gross = p && q ? q.times(p) : null
-  const total = gross && f ? gross.plus(f) : null
 
   const submit = handleSubmit(async (values) => {
     await onSubmit(toInvestmentInput(values))
@@ -66,20 +66,26 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, submitLab
         )}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {/* One row on wider screens: how much, at what price, and when (same layout as the sell form). */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Input
           label="Quantity purchased"
           inputMode="decimal"
           placeholder="0.0"
           error={errors.quantity?.message}
-          hint={soldQuantity && new D(soldQuantity).gt(0) ? `Already sold: ${formatQuantity(soldQuantity)} — cannot go below this.` : undefined}
+          hint={
+            soldQuantity && new D(soldQuantity).gt(0)
+              ? `Minimum ${formatQuantity(soldQuantity)} (already sold).`
+              : 'Number of coins bought.'
+          }
           {...register('quantity')}
         />
         <Input
-          label="Buy price (USD per coin)"
+          label="Buy price per coin"
           inputMode="decimal"
           leading="$"
           placeholder="0.00"
+          hint="USD price per coin at the time of purchase."
           error={errors.buyPrice?.message}
           {...register('buyPrice')}
         />
@@ -98,30 +104,14 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, submitLab
             />
           )}
         />
-        <Input
-          label="Transaction fee (USD, optional)"
-          inputMode="decimal"
-          leading="$"
-          placeholder="0.00"
-          hint="Enter fees in USD. Convert fees paid in other currencies first."
-          error={errors.buyFee?.message}
-          {...register('buyFee')}
-        />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-background p-3 text-sm" aria-live="polite">
-        <div>
-          <div className="text-xs text-muted-foreground">Invested amount (Q × price)</div>
-          <div className="tabular font-semibold text-foreground" data-testid="invested-preview">
-            {gross ? formatUsd(gross) : '—'}
-          </div>
+      <div className="rounded-lg border border-border bg-background p-3 text-sm" aria-live="polite">
+        <div className="text-xs text-muted-foreground">Total invested</div>
+        <div className="tabular font-semibold text-foreground" data-testid="invested-preview">
+          {gross ? formatUsd(gross, { dropZeroCents: true }) : '—'}
         </div>
-        <div>
-          <div className="text-xs text-muted-foreground">Total cost basis (incl. fee)</div>
-          <div className="tabular font-semibold text-foreground" data-testid="cost-basis-preview">
-            {total ? formatUsd(total) : '—'}
-          </div>
-        </div>
+        {!gross && <div className="text-xs text-muted-foreground">Enter the quantity and buy price to see the total.</div>}
       </div>
 
       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background p-3">
@@ -129,12 +119,19 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, submitLab
         <span className="text-sm">
           <span className="font-medium text-foreground">Long-term holding</span>
           <span className="block text-xs text-muted-foreground">
-            Mark this purchase as a long-term hold. It is shown with its own camel-colored status while you hold it.
+            Marks this purchase as a long-term hold. It gets its own status color while it is held.
           </span>
         </span>
       </label>
 
-      <Textarea label="Note (optional)" maxLength={LIMITS.noteMax} rows={2} error={errors.note?.message} {...register('note')} />
+      <Textarea
+        label="Note (optional)"
+        rows={2}
+        placeholder="e.g. Bought on Binance"
+        maxLength={LIMITS.noteMax}
+        error={errors.note?.message}
+        {...register('note')}
+      />
 
       <div className="flex justify-end gap-2 pt-1">
         <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>

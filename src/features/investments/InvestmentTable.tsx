@@ -32,7 +32,7 @@ import { PLPill } from '@/components/ui/PLPill'
 import { PLValue } from '@/components/ui/PLValue'
 import { cn } from '@/lib/cn'
 import { TABLE_PAGE_SIZES } from '@/lib/constants'
-import { formatShortDate, formatUsd } from '@/lib/formatters'
+import { formatDate, formatUsd } from '@/lib/formatters'
 import { InvestmentActions, type InvestmentAction } from './InvestmentActions'
 import { BoughtCell, CoinCell, CurrentValueCell, InvestedCell, ProfitLossCell, SoldAmountCell, ValueVsInvested } from './InvestmentCells'
 import { PositionStatusBadge } from './PositionStatusBadge'
@@ -71,7 +71,7 @@ function DragHandle({ lot }: { lot: LotMetrics }) {
       type="button"
       ref={active ? drag.setActivatorNodeRef : undefined}
       {...(active ? { ...drag.attributes, ...drag.listeners } : {})}
-      aria-label={`Drag to reorder ${lot.investment.symbol} bought ${formatShortDate(lot.investment.buyDate)}`}
+      aria-label={`Drag to reorder ${lot.investment.symbol} bought ${formatDate(lot.investment.buyDate)}`}
       title={reason ?? 'Drag to reorder'}
       disabled={!active}
       onClick={(e) => e.stopPropagation()} // don't open the row's details
@@ -441,7 +441,7 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false 
                   const rowProps: RowProps = {
                     tabIndex: 0,
                     title: 'Click to view details',
-                    'aria-label': `${lot.investment.coinName} bought ${formatShortDate(lot.investment.buyDate)} — press Enter to view details`,
+                    'aria-label': `${lot.investment.coinName} bought ${formatDate(lot.investment.buyDate)} — press Enter to view details`,
                     onClick: () => {
                       if (Date.now() - lastDragEnd.current > 300) onAction('view', lot)
                     },

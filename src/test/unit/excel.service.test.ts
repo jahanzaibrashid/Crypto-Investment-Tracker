@@ -8,6 +8,7 @@ import {
   sanitizeCellText,
 } from '@/features/export/excel.service'
 import { computeLot, summarizePortfolio } from '@/features/investments/investments.utils'
+import { EXCEL_DATE_FORMAT } from '@/lib/formatters'
 import { makeInvestment, makeSale, priceLookup } from '../fixtures'
 
 function build(opts: { prices?: Record<string, string>; note?: string; stale?: boolean } = {}) {
@@ -78,7 +79,7 @@ describe('buildWorkbook', () => {
     const ws = wb.Sheets.Investments!
     // Row 2 = first lot. D = buy date, E = buy price, I = cost basis, R = ROI
     expect(cell(ws, 'D2')).toMatchObject({ t: 'n', v: excelDateSerial('2024-01-01') })
-    expect(cell(ws, 'D2')!.z).toBe('yyyy-mm-dd')
+    expect(cell(ws, 'D2')!.z).toBe(EXCEL_DATE_FORMAT)
     expect(cell(ws, 'I2')).toMatchObject({ t: 'n', v: 210 })
     expect(String(cell(ws, 'I2')!.z)).toContain('$')
     expect(cell(ws, 'N2')).toMatchObject({ t: 'n', v: 300 }) // current value

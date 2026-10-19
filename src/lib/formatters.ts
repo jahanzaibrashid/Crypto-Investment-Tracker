@@ -36,12 +36,17 @@ export function adaptiveDecimals(value: Num, { min = 2, max = 12, significant = 
   return Math.min(max, Math.max(min, leadingZeros + significant))
 }
 
-/** USD amount. Large values use 2 decimals; sub-dollar values get enough decimals to stay meaningful. */
-export function formatUsd(value: Num, opts: { signed?: boolean; maxDecimals?: number } = {}): string {
+/**
+ * USD amount. Large values use 2 decimals; sub-dollar values get enough decimals to stay meaningful.
+ * `dropZeroCents`: a whole-dollar result shows without ".00" ($2,300 instead of $2,300.00),
+ * while $2,300.50 keeps its cents.
+ */
+export function formatUsd(value: Num, opts: { signed?: boolean; maxDecimals?: number; dropZeroCents?: boolean } = {}): string {
   const d = toDec(value)
   const decimals = adaptiveDecimals(d, { min: 2, max: opts.maxDecimals ?? 8 })
   let fixed = d.toDecimalPlaces(decimals, D.ROUND_HALF_UP).toFixed(decimals)
   fixed = trimZeros(fixed, 2)
+  if (opts.dropZeroCents && /^-?[1-9]\d*\.00$/.test(fixed)) fixed = fixed.slice(0, -3)
   // Sign comes from the rounded value: -0.000000001 shows as "$0.00", not "-$0.00" or "+$0.00".
   const roundsToZero = /^-?0(\.0*)?$/.test(fixed)
   const isNeg = fixed.startsWith('-') && !roundsToZero
@@ -50,20 +55,13 @@ export function formatUsd(value: Num, opts: { signed?: boolean; maxDecimals?: nu
   return `${sign}$${group(abs)}`
 }
 
-/** Market or trade price of a single coin (up to 12 decimals for micro-priced tokens). */
-export function formatPrice(value: Num): string {
-  return formatUsd(value, { maxDecimals: 12 })
-}
-
 /**
- * Per-coin price for dense tables: whole-dollar prices drop the ".00"
- * ($2,500 instead of $2,500.00); anything with cents or sub-dollar precision
- * is shown exactly as formatPrice would.
+ * Price of a single coin, shown the way it was entered: whole-dollar prices have no ".00"
+ * ($2,300), prices with cents keep two decimals ($2,300.50), and micro-priced tokens get
+ * up to 12 decimals so they never collapse to $0.00 ($0.00001234).
  */
-export function formatPriceCompact(value: Num): string {
-  const d = toDec(value)
-  if (d.isInteger() && !d.isZero()) return `${d.isNeg() ? '-' : ''}$${group(d.abs().toFixed(0))}`
-  return formatPrice(d)
+export function formatPrice(value: Num): string {
+  return formatUsd(value, { maxDecimals: 12, dropZeroCents: true })
 }
 
 /** Coin quantity: up to 8 decimals normally, more for dust amounts; trailing zeros trimmed. */
@@ -83,20 +81,26 @@ export function formatPercent(value: Num | null, opts: { signed?: boolean } = { 
   return `${sign}${group(fixed)}%`
 }
 
-/** Format a DATE column value (YYYY-MM-DD) without timezone shifting. */
-export function formatDate(isoDate: string): string {
-  const [y, m, d] = isoDate.split('-').map(Number)
-  if (!y || !m || !d) return isoDate
-  return new Date(y, m - 1, d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-}
+// ---------------------------------------------------------------------------------------------
+// Dates: the ONE place that decides how dates look across the app (tables, dialogs, messages,
+// date inputs, their hint and placeholder, and the Excel export). To change the format, edit
+// formatDate (and EXCEL_DATE_FORMAT to match); keep parseDate accepting what formatDate returns.
+// ---------------------------------------------------------------------------------------------
 
-/** Compact DATE format for dense tables: 2026-09-18 → "18-Sep-26" (same style as the source spreadsheet). */
-export function formatShortDate(isoDate: string): string {
-  const [y, m, d] = isoDate.split('-').map(Number)
-  if (!y || !m || !d) return isoDate
+/** How a date column is formatted in exported Excel files (Excel's own format codes). */
+export const EXCEL_DATE_FORMAT = 'd-mmm-yy'
+
+/** App date format, without timezone shifting: YYYY-MM-DD (or a Date) → "18-Sep-26". */
+export function formatDate(value: string | Date): string {
+  const iso = typeof value === 'string' ? value : todayIso(value)
+  const [y, m, d] = iso.split('-').map(Number)
+  if (!y || !m || !d) return iso
   const month = new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short' })
   return `${d}-${month}-${String(y).slice(-2)}`
 }
+
+/** Example shown in date inputs ("Format: …", "e.g. …"), always in the current app format. */
+export const DATE_FORMAT_EXAMPLE = formatDate('2026-09-01')
 
 const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
 
@@ -110,7 +114,7 @@ function monthFromName(name: string): number {
  * Parse a typed date into YYYY-MM-DD. Accepts "1-Sep-26", "1 Sep 2026", "01-sep-2026"
  * (two-digit years are 20xx) and "2026-09-01". Returns null for anything else or impossible dates.
  */
-export function parseShortDate(text: string): string | null {
+export function parseDate(text: string): string | null {
   const t = text.trim()
   let y: number, m: number, d: number
   const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t)
@@ -131,13 +135,7 @@ export function parseShortDate(text: string): string | null {
 }
 
 export function formatDateTime(ms: number): string {
-  return new Date(ms).toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
+  return `${formatDate(new Date(ms))}, ${formatTime(ms)}`
 }
 
 export function formatTime(ms: number): string {

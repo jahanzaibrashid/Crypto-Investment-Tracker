@@ -12,7 +12,7 @@ import { PLPill } from '@/components/ui/PLPill'
 import { PLValue } from '@/components/ui/PLValue'
 import { cn } from '@/lib/cn'
 import type { Dec } from '@/lib/decimal'
-import { formatDate, formatPriceCompact, formatQuantity, formatShortDate, formatUsd, plClass } from '@/lib/formatters'
+import { formatDate, formatPrice, formatQuantity, formatUsd, plClass } from '@/lib/formatters'
 import { PriceStatusBadge } from './PriceStatusBadge'
 import { displayPL, displayROI, saleSummary, type LotMetrics } from './investments.utils'
 
@@ -37,9 +37,9 @@ export function BoughtCell({ lot }: { lot: LotMetrics }) {
   return (
     <div className="flex flex-col">
       <div className={primary}>{formatQuantity(lot.quantity)}</div>
-      <div className={secondary}>@ {formatPriceCompact(lot.buyPrice)}</div>
-      <div className={dateLine} title={formatDate(lot.investment.buyDate)}>
-        {formatShortDate(lot.investment.buyDate)}
+      <div className={secondary}>@ {formatPrice(lot.buyPrice)}</div>
+      <div className={dateLine}>
+        {formatDate(lot.investment.buyDate)}
       </div>
       {lot.isPartiallySold && <div className="text-[13px] font-medium text-warning-text">{formatQuantity(lot.remainingQuantity)} left</div>}
     </div>
@@ -80,7 +80,7 @@ export function CurrentValueCell({ lot }: { lot: LotMetrics }) {
       {lot.currentValue ? <ValueVsInvested value={lot.currentValue} pl={lot.unrealizedPL} /> : <div className={primary}>Unavailable</div>}
       {lot.currentPrice && (
         <div className={cn('text-[13px]', lot.unrealizedPL === null || lot.unrealizedPL.isZero() ? 'text-muted-foreground' : plClass(lot.unrealizedPL))}>
-          @ {formatPriceCompact(lot.currentPrice)}
+          @ {formatPrice(lot.currentPrice)}
         </div>
       )}
       <PriceStatusBadge status={lot.priceStatus} size="lg" />
@@ -95,10 +95,10 @@ export function SoldAmountCell({ lot }: { lot: LotMetrics }) {
     <div className="flex flex-col">
       <div className={primary}>{formatUsd(s.netProceeds)}</div>
       <div className={secondary}>
-        {s.count > 1 ? 'avg ' : ''}@ {formatPriceCompact(s.averagePrice)}
+        {s.count > 1 ? 'avg ' : ''}@ {formatPrice(s.averagePrice)}
       </div>
-      <div className={dateLine} title={formatDate(s.lastSoldDate)}>
-        {formatShortDate(s.lastSoldDate)}
+      <div className={dateLine}>
+        {formatDate(s.lastSoldDate)}
         {s.count > 1 && <span className="text-[13px]"> · last of {s.count}</span>}
       </div>
       {s.fees.gt(0) && <div className={secondary}>after {formatUsd(s.fees)} fee</div>}

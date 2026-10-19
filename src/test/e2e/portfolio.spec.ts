@@ -25,14 +25,13 @@ async function rowAction(page: Page, coin: string, action: 'Edit' | 'Edit note' 
   await page.getByRole('menuitem', { name: new RegExp(`^${action}: ${coin}`) }).click()
 }
 
-async function addInvestment(page: Page, symbol: string, price: string, quantity: string, fee = '') {
+async function addInvestment(page: Page, symbol: string, price: string, quantity: string) {
   if (!page.url().endsWith('/investments')) await goTo(page, 'Investments')
   await page.getByRole('button', { name: /Add (your first )?investment/i }).first().click()
   const dialog = page.getByRole('dialog', { name: 'Add investment' })
   await dialog.getByRole('button', { name: symbol, exact: true }).click()
-  await dialog.getByLabel('Buy price (USD per coin)').fill(price)
+  await dialog.getByLabel('Buy price per coin').fill(price)
   await dialog.getByLabel('Quantity purchased').fill(quantity)
-  if (fee) await dialog.getByLabel('Transaction fee (USD, optional)').fill(fee)
   await dialog.getByRole('button', { name: 'Add investment' }).click()
   await expect(dialog).toBeHidden()
 }
@@ -42,7 +41,7 @@ test.describe('portfolio', () => {
     await setup(page)
 
     // Two purchases of the same coin + one other coin
-    await addInvestment(page, 'BTC', '40000', '0.5', '10') // cost 20,010 → value 25,000
+    await addInvestment(page, 'BTC', '40000', '0.5') // cost 20,000 → value 25,000
     await addInvestment(page, 'BTC', '45000', '0.2') // cost 9,000 → value 10,000
     await addInvestment(page, 'ETH', '2000', '2') // cost 4,000 → value 6,000
     await expect(page.getByTestId('investment-row')).toHaveCount(3)
@@ -51,7 +50,7 @@ test.describe('portfolio', () => {
 
     await goTo(page, 'Overview')
     await expect(page.getByTestId('card-current-value')).toContainText('$41,000.00')
-    await expect(page.getByTestId('card-total-invested')).toContainText('$33,010.00')
+    await expect(page.getByTestId('card-total-invested')).toContainText('$33,000.00')
 
     // Holdings page combines the BTC lots
     await goTo(page, 'Holdings')
@@ -68,8 +67,8 @@ test.describe('portfolio', () => {
     // Sell all ETH → realized P/L, no double counting
     await rowAction(page, 'Ethereum', 'Sell')
     const sell = page.getByRole('dialog', { name: /Sell Ethereum/ })
-    await sell.getByLabel('Sale price (USD per coin)').fill('2500')
-    await sell.getByRole('button', { name: 'Record sale' }).click()
+    await sell.getByLabel('Sale price per coin').fill('2500')
+    await sell.getByRole('button', { name: 'Mark as sold' }).click()
     await expect(sell).toBeHidden()
     await goTo(page, 'Overview')
     await expect(page.getByTestId('card-realized')).toContainText('+$1,000.00')

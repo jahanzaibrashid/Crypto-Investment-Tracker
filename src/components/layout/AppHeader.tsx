@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { SectionNav } from './SectionNav'
 import { APP_NAME } from '@/lib/constants'
-import { formatRelative, formatTime } from '@/lib/formatters'
+import { formatDate, formatRelative, formatTime } from '@/lib/formatters'
 import { useNow } from '@/hooks/useNow'
 
 export interface AppHeaderProps {
@@ -80,7 +80,7 @@ function AccountMenu({ email, onSignOut }: { email: string | null; onSignOut: ()
 
 export function AppHeader(props: AppHeaderProps) {
   const now = useNow(15_000)
-  const today = new Date(now).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
+  const today = `${new Date(now).toLocaleDateString('en-US', { weekday: 'short' })}, ${formatDate(new Date(now))}`
 
   return (
     // Phones: title on its own row and actions below it, and the header scrolls away instead of

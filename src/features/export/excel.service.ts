@@ -8,7 +8,7 @@
  */
 import * as XLSX from 'xlsx'
 import { ZERO, type Dec } from '@/lib/decimal'
-import { todayIso } from '@/lib/formatters'
+import { EXCEL_DATE_FORMAT, todayIso } from '@/lib/formatters'
 import type { LotMetrics, PortfolioSummary } from '@/features/investments/investments.utils'
 import { displayROI, positionKind } from '@/features/investments/investments.utils'
 
@@ -17,8 +17,8 @@ const FMT = {
   price: '"$"#,##0.00##########;[Red]-"$"#,##0.00##########',
   qty: '#,##0.##################',
   pct: '0.00%;[Red]-0.00%',
-  date: 'yyyy-mm-dd',
-  datetime: 'yyyy-mm-dd hh:mm:ss',
+  date: EXCEL_DATE_FORMAT,
+  datetime: `${EXCEL_DATE_FORMAT} hh:mm:ss`,
 } as const
 
 const UNAVAILABLE = 'Unavailable'
