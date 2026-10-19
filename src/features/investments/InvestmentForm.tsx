@@ -7,6 +7,7 @@ import { D, type Dec } from '@/lib/decimal'
 import { EARLIEST_BUY_DATE, LIMITS } from '@/lib/constants'
 import { formatQuantity, formatUsd, todayIso } from '@/lib/formatters'
 import { CoinPicker } from './CoinPicker'
+import { ExchangePicker } from './ExchangePicker'
 import {
   defaultInvestmentValues,
   makeInvestmentFormSchema,
@@ -28,12 +29,14 @@ interface InvestmentFormProps {
   soldQuantity?: string
   /** Earliest sale of this lot (edit mode): the buy date may not be later than this. */
   firstSaleDate?: string | null
+  /** Suggestions for "Bought on": presets + exchanges already used (exchangeOptions). */
+  exchangeOptions: string[]
   submitLabel: string
   onSubmit: (input: InvestmentInput) => Promise<void>
   onCancel: () => void
 }
 
-export function InvestmentForm({ initial, soldQuantity, firstSaleDate, submitLabel, onSubmit, onCancel }: InvestmentFormProps) {
+export function InvestmentForm({ initial, soldQuantity, firstSaleDate, exchangeOptions, submitLabel, onSubmit, onCancel }: InvestmentFormProps) {
   const {
     control,
     register,
@@ -63,6 +66,20 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, submitLab
         name="coin"
         render={({ field, fieldState }) => (
           <CoinPicker value={field.value} onChange={field.onChange} error={fieldState.error?.message} />
+        )}
+      />
+
+      <Controller
+        control={control}
+        name="exchange"
+        render={({ field, fieldState }) => (
+          <ExchangePicker
+            value={field.value ?? ''}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            options={exchangeOptions}
+            error={fieldState.error?.message}
+          />
         )}
       />
 

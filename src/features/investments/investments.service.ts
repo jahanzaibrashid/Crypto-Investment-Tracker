@@ -12,7 +12,7 @@ import type { ImportLotInput, Investment, InvestmentInput, Sale, SaleInput } fro
 const PAGE = 1000 // PostgREST default max-rows
 
 const INVESTMENT_COLUMNS =
-  'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, long_term, sort_order, note, created_at, updated_at'
+  'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, long_term, exchange, sort_order, note, created_at, updated_at'
 const SALE_COLUMNS = 'id, investment_id, sold_date, quantity::text, price::text, fee::text, note, created_at'
 
 interface InvestmentRow {
@@ -26,6 +26,7 @@ interface InvestmentRow {
   buy_fee: string
   status: 'HOLDING' | 'SOLD'
   long_term: boolean
+  exchange: string | null
   sort_order: number | string
   note: string | null
   created_at: string
@@ -68,6 +69,7 @@ export function mapInvestment(r: InvestmentRow, sales: Sale[]): Investment {
     buyFee: String(r.buy_fee),
     status: r.status,
     longTerm: Boolean(r.long_term),
+    exchange: r.exchange ?? null,
     sortOrder: Number(r.sort_order),
     note: r.note,
     createdAt: r.created_at,
@@ -123,6 +125,7 @@ function toInvestmentPayload(input: InvestmentInput) {
     quantity: input.quantity,
     buy_fee: input.buyFee || '0',
     long_term: input.longTerm,
+    exchange: input.exchange?.trim() ? input.exchange.trim() : null,
     note: input.note?.trim() ? input.note.trim() : null,
   }
 }

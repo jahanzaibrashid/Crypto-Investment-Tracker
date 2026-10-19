@@ -48,7 +48,7 @@ async function rowAction(user: UserEvent, coin: string, action: 'Edit' | 'Edit n
   await user.click(await screen.findByRole('menuitem', { name: new RegExp(`^${action}: ${coin}`) }))
 }
 
-/** Navigate with the sidebar (the first matching link; mobile pills duplicate it). */
+/** Navigate with the sidebar (the mobile drawer has the same links, but only while it is open). */
 async function goTo(user: UserEvent, page: 'Overview' | 'Holdings' | 'Investments' | 'Notes') {
   await user.click(screen.getAllByRole('link', { name: page })[0]!)
   await screen.findByRole('heading', { level: 2, name: page })
@@ -94,6 +94,61 @@ describe('Dashboard', () => {
     await goTo(user, 'Overview')
     await waitFor(() => expect(screen.getByTestId('card-current-value')).toHaveTextContent('$25,000.00'))
     expect(screen.getByTestId('card-unrealized')).toHaveTextContent('+$5,000.00')
+  })
+
+  it('records where a coin was bought: preset, newly added name, badge and filter', async () => {
+    const { user } = await renderDashboard()
+    const add = async (symbol: string, exchangeText: string, pick: string) => {
+      await user.click(await screen.findByRole('button', { name: 'Add Investment' })) // page header button
+      const dialog = await screen.findByRole('dialog', { name: 'Add investment' })
+      await user.click(within(dialog).getByRole('button', { name: symbol }))
+      await user.type(within(dialog).getByLabelText('Buy price per coin'), '100')
+      await user.type(within(dialog).getByLabelText('Quantity purchased'), '1')
+      await user.type(within(dialog).getByRole('combobox', { name: 'Bought on (optional)' }), exchangeText)
+      await user.click(within(dialog).getByRole('option', { name: pick }))
+      await user.click(within(dialog).getByRole('button', { name: 'Add investment' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    }
+
+    await add('BTC', 'binance', 'Binance') // typed in lower case → the preset spelling
+    await add('ETH', 'My Wallet', 'Add “My Wallet”') // a platform the app doesn't list
+    expect(investmentsServiceMock.createInvestment).toHaveBeenCalledWith(expect.objectContaining({ coinId: 'bitcoin', exchange: 'Binance' }))
+    expect(investmentsServiceMock.createInvestment).toHaveBeenCalledWith(expect.objectContaining({ coinId: 'ethereum', exchange: 'My Wallet' }))
+
+    await waitFor(() => expect(rows()).toHaveLength(2))
+    expect(within(rows().find((r) => within(r).queryByText('BTC'))!).getByText('Binance')).toBeInTheDocument()
+
+    // The new name is now suggested like a preset.
+    await user.click(screen.getByRole('button', { name: 'Add Investment' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add investment' })
+    await user.click(within(dialog).getByRole('combobox', { name: 'Bought on (optional)' }))
+    expect(within(dialog).getByRole('option', { name: 'My Wallet' })).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    await user.selectOptions(screen.getByLabelText('Bought on'), 'My Wallet')
+    await waitFor(() => expect(rows()).toHaveLength(1))
+    expect(within(rows()[0]!).getByText('ETH')).toBeInTheDocument()
+  })
+
+  it('opens the navigation drawer from the menu button and closes it after choosing a page', async () => {
+    const { user } = await renderDashboard()
+    const menuButton = screen.getByRole('button', { name: 'Open menu' })
+    expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+    await user.click(menuButton)
+    const drawer = await screen.findByRole('dialog', { name: 'Menu' })
+    expect(menuButton).toHaveAttribute('aria-expanded', 'true')
+    expect(within(drawer).getByRole('button', { name: 'Close menu' })).toHaveFocus()
+    expect(within(drawer).getByRole('button', { name: 'Export to Excel' })).toBeInTheDocument()
+
+    await user.click(within(drawer).getByRole('link', { name: 'Holdings' }))
+    await screen.findByRole('heading', { level: 2, name: 'Holdings' })
+    expect(screen.queryByRole('dialog', { name: 'Menu' })).not.toBeInTheDocument()
+
+    await user.click(menuButton)
+    await screen.findByRole('dialog', { name: 'Menu' })
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Menu' })).not.toBeInTheDocument()
+    expect(menuButton).toHaveFocus()
   })
 
   it('orders the add/edit form fields: coin, quantity, price, date', async () => {
@@ -218,7 +273,7 @@ describe('Dashboard', () => {
     await waitFor(() => expect(within(row).getByText('Sold · Profit')).toBeInTheDocument())
     expect(row).toHaveAttribute('data-row-tone', 'SOLD_PROFIT')
     // Realized result shown in the Profit / Loss column (amount + %).
-    expect(within(row).getByText('+$996.00')).toBeInTheDocument()
+    expect(within(row).getByText('+$996')).toBeInTheDocument()
     await goTo(user, 'Overview')
     expect(screen.getByTestId('card-realized')).toHaveTextContent('+$996.00')
     expect(screen.getByTestId('card-current-value')).toHaveTextContent('$0.00')
@@ -267,6 +322,10 @@ describe('Dashboard', () => {
     expect(within(rows()[0]!).getByText('Solana')).toBeInTheDocument()
     expect(screen.getByText('Showing 1 of 3 investments', { exact: false })).toBeInTheDocument()
     expect(screen.getByText('Sold from 1-Apr-24 to 30-Apr-24', { exact: false })).toBeInTheDocument()
+    // Phones: the collapsed "Filters" button counts applied filters, and each shows as a removable chip.
+    expect(screen.getByRole('button', { name: /^Filters/ })).toHaveTextContent('1')
+    await user.click(screen.getByRole('button', { name: 'Remove filter: Sold: April 2024' }))
+    await waitFor(() => expect(rows()).toHaveLength(3))
 
     await user.click(screen.getAllByRole('button', { name: 'Clear filters' })[0]!)
     await user.selectOptions(screen.getByLabelText('Status'), 'SOLD_PROFIT')
@@ -302,11 +361,11 @@ describe('Dashboard', () => {
       const row = rows().find((r) => within(r).queryByText(coin))!
       return within(row).getAllByRole('cell')[headers.indexOf(header)]!
     }
-    expect(cellOf('Ethereum', 'Bought')).toHaveTextContent(/^0\.1@ \$2,4001-Sep-26$/) // three lines: qty / @ price / date
+    expect(cellOf('Ethereum', 'Bought')).toHaveTextContent(/^0\.11-Sep-26$/) // two lines: qty / date
     // Profit / Loss shows the amount and the % together: $250 − $240 = +$10 (+4.17%)
-    expect(cellOf('Ethereum', 'Profit / Loss')).toHaveTextContent('+$10.00')
+    expect(cellOf('Ethereum', 'Profit / Loss')).toHaveTextContent('+$10')
     expect(cellOf('Ethereum', 'Profit / Loss')).toHaveTextContent('+4.17%')
-    expect(cellOf('Ethereum', 'Invested')).toHaveTextContent('$240.00')
+    expect(cellOf('Ethereum', 'Invested')).toHaveTextContent(/^\$240@ \$2,400$/) // amount / @ buy price
     expect(cellOf('Ethereum', 'Sold amount')).toHaveTextContent('$250.00')
     expect(cellOf('Ethereum', 'Sold amount')).toHaveTextContent('@ $2,500')
     expect(cellOf('Ethereum', 'Sold amount')).toHaveTextContent('18-Sep-26')
@@ -446,30 +505,25 @@ describe('Dashboard', () => {
     const totals = screen.getByTestId('totals-row')
     const cell = (id: string) => totals.querySelector(`[data-column="${id}"]`)!
     expect(cell('coin')).toHaveTextContent('Total2 rows')
-    expect(cell('invested')).toHaveTextContent('$30,100.00')
+    expect(cell('invested')).toHaveTextContent('$30,100')
     await waitFor(() => expect(cell('currentValue')).toHaveTextContent('$50,000.00'))
     expect(cell('soldAmount')).toHaveTextContent('$120.00')
-    expect(cell('pl')).toHaveTextContent('+$20,020.00')
+    expect(cell('pl')).toHaveTextContent('+$20,020')
     expect(cell('pl')).toHaveTextContent('+66.51%')
 
     await user.selectOptions(screen.getByLabelText('Status'), 'SOLD_PROFIT')
     await waitFor(() => expect(rows()).toHaveLength(1))
     expect(cell('coin')).toHaveTextContent('Total1 row')
-    expect(cell('invested')).toHaveTextContent('$100.00')
-    expect(cell('pl')).toHaveTextContent('+$20.00')
+    expect(cell('invested')).toHaveTextContent('$100')
+    expect(cell('pl')).toHaveTextContent('+$20')
   })
 
-  it('explains each column with an ⓘ tooltip in the header', async () => {
+  it('keeps the column headers compact: no ⓘ buttons', async () => {
     seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
-    const { user } = await renderDashboard()
+    await renderDashboard()
     await waitFor(() => expect(rows()).toHaveLength(1))
-    await user.hover(screen.getByRole('button', { name: 'About Invested' }))
-    expect(await screen.findByRole('tooltip')).toHaveTextContent(/quantity × buy price/)
-    await user.unhover(screen.getByRole('button', { name: 'About Invested' }))
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
-    // Clicking the ⓘ in a sortable header does not change the sort.
-    await user.click(screen.getByRole('button', { name: 'About Profit / Loss' }))
-    expect(screen.getByRole('columnheader', { name: /Profit \/ Loss/ })).toHaveAttribute('aria-sort', 'none')
+    const table = screen.getByRole('table', { name: 'Investments' })
+    expect(within(table).queryByRole('button', { name: /^About / })).not.toBeInTheDocument()
   })
 
   it('colors current value green above the invested amount and red below it', async () => {
@@ -500,7 +554,7 @@ describe('Dashboard', () => {
     const row = (await screen.findAllByTestId('investment-row'))[0]!
     expect(within(row).queryByTestId('coin-avatar')).not.toBeInTheDocument()
     expect(within(row).getByText('ETH')).toBeInTheDocument()
-    expect(within(row).getByText('+$10.00')).toBeInTheDocument()
+    expect(within(row).getByText('+$10')).toBeInTheDocument()
     expect(within(row).getByText('+4.17%')).toBeInTheDocument()
   })
 
@@ -565,6 +619,36 @@ describe('Dashboard', () => {
     }
   })
 
+  it('on phones, reorders with Move up / Move down in the row menu instead of the drag grip', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('max-width'),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }))
+    try {
+      const btc = seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
+      const eth = seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH' }) // newest: on top
+      const { user } = await renderDashboard()
+      await waitFor(() => expect(rows()).toHaveLength(2))
+
+      await user.click(await screen.findByRole('button', { name: /^Actions: Ethereum/ }))
+      expect(await screen.findByRole('menuitem', { name: /^Move up: Ethereum/ })).toHaveAttribute('aria-disabled', 'true') // already first
+      await user.click(screen.getByRole('menuitem', { name: /^Move down: Ethereum/ }))
+      await waitFor(() => expect(investmentsServiceMock.reorderOpenInvestments).toHaveBeenCalledWith([btc.id, eth.id]))
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('offers no Move up / Move down on larger screens (rows are dragged there)', async () => {
+    seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
+    const { user } = await renderDashboard()
+    await user.click(await screen.findByRole('button', { name: /^Actions: Bitcoin/ }))
+    await screen.findByRole('menuitem', { name: /^Edit: Bitcoin/ })
+    expect(screen.queryByRole('menuitem', { name: /^Move up/ })).not.toBeInTheDocument()
+  })
+
   it('groups row actions in a "⋯" menu that works with the keyboard', async () => {
     seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', buyDate: '2024-01-02' })
     seedInvestment({
@@ -596,10 +680,17 @@ describe('Dashboard', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('opens the Add dialog when coming from the Overview "Add Investment" link', async () => {
+  it('opens the Add dialog from the empty Overview "Add your first investment" link', async () => {
     const { user } = await renderDashboard('/overview')
-    await user.click((await screen.findAllByRole('link', { name: /Add (your first )?investment/i }))[0]!)
+    await user.click(await screen.findByRole('link', { name: 'Add your first investment' }))
     expect(await screen.findByRole('dialog', { name: 'Add investment' })).toBeInTheDocument()
+  })
+
+  it('has no Add Investment button on the Overview once there are investments', async () => {
+    seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
+    await renderDashboard('/overview')
+    await screen.findByTestId('card-current-value')
+    expect(screen.queryByRole('link', { name: /Add (your first )?investment/i })).not.toBeInTheDocument()
   })
 
   it('shows a clear error and unavailable values when the price API fails', async () => {
@@ -707,6 +798,7 @@ describe('Dashboard', () => {
         quantity: '2',
         buyFee: '5',
         longTerm: true,
+        exchange: null, // the workbook has no Exchange column
         note: 'from exchange',
         sales: [{ soldDate: '2024-03-01', quantity: '0.5', price: '2500', fee: '0', note: null }],
       },
@@ -746,8 +838,8 @@ describe('Dashboard', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument() // dragging didn't open the row
 
       // A column sort is temporary and pauses dragging; clearing it restores the saved order.
-      await user.click(screen.getByRole('button', { name: 'Sort by coin' })) // by name: Bitcoin, Cardano, Ethereum, Solana
-      await waitFor(() => expect(order()).toEqual(['BTC', 'ADA', 'ETH', 'SOL']))
+      await user.click(screen.getByRole('button', { name: 'Sort by coin' })) // by ticker
+      await waitFor(() => expect(order()).toEqual(['ADA', 'BTC', 'ETH', 'SOL']))
       expect(screen.getByRole('button', { name: /^Drag to reorder BTC/ })).toBeDisabled()
       await user.click(screen.getByRole('button', { name: 'Back to saved order' }))
       expect(order()).toEqual(['ETH', 'BTC', 'ADA', 'SOL'])

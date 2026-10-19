@@ -35,6 +35,8 @@ const COL = {
   buyFee: 'Purchase Fees (USD)',
   status: 'Status',
   note: 'Note',
+  /** Optional: files exported before exchanges were tracked don't have it. */
+  exchange: 'Exchange',
   longTerm: 'Long-term',
   lotId: 'Lot ID',
   saleDate: 'Sale Date',
@@ -185,6 +187,7 @@ export function parseImportWorkbook(data: ArrayBuffer): ParsedImport {
       quantity: readDecimal(r.get(COL.quantity), LIMITS.quantityDecimals),
       buyFee: readDecimal(r.get(COL.buyFee), LIMITS.priceDecimals),
       longTerm,
+      exchange: inv.has(COL.exchange) ? readText(r.get(COL.exchange)) : '',
       note: readText(r.get(COL.note)),
     })
     const lotId = readText(r.get(COL.lotId))

@@ -7,12 +7,14 @@
  *   15px  main values and the P/L $ pill (semibold)
  *   lines stack with no gap and leading-snug, to keep rows compact
  */
+import { Badge } from '@/components/ui/Badge'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 import { PLPill } from '@/components/ui/PLPill'
 import { PLValue } from '@/components/ui/PLValue'
 import { cn } from '@/lib/cn'
 import type { Dec } from '@/lib/decimal'
-import { formatDate, formatPrice, formatQuantity, formatUsd, plClass } from '@/lib/formatters'
+import { formatAmount, formatDate, formatPrice, formatQuantity, formatUsd, plClass } from '@/lib/formatters'
 import { PriceStatusBadge } from './PriceStatusBadge'
 import { displayPL, displayROI, saleSummary, type LotMetrics } from './investments.utils'
 
@@ -25,10 +27,19 @@ export function CoinCell({ lot }: { lot: LotMetrics }) {
   const inv = lot.investment
   return (
     <div className="min-w-0">
-      <div className={primary}>{inv.symbol}</div>
-      <div className="max-w-28 truncate text-[13px] text-muted-foreground" title={inv.coinName}>
-        {inv.coinName}
+      {/* Only the ticker is shown; the full name appears on hover and is read by screen readers. */}
+      <div className={primary}>
+        <Tooltip text={inv.coinName}>{inv.symbol}</Tooltip>
+        <span className="sr-only"> {inv.coinName}</span>
       </div>
+      {/* Hidden on phones to keep the column narrow; the exchange is in the details panel there. */}
+      {inv.exchange && (
+        <div className="hidden sm:block">
+          <Badge tone="info" className="mt-1 max-w-24 truncate" title={`Bought on ${inv.exchange}`}>
+            {inv.exchange}
+          </Badge>
+        </div>
+      )}
     </div>
   )
 }
@@ -37,7 +48,6 @@ export function BoughtCell({ lot }: { lot: LotMetrics }) {
   return (
     <div className="flex flex-col">
       <div className={primary}>{formatQuantity(lot.quantity)}</div>
-      <div className={secondary}>@ {formatPrice(lot.buyPrice)}</div>
       <div className={dateLine}>
         {formatDate(lot.investment.buyDate)}
       </div>
@@ -49,7 +59,9 @@ export function BoughtCell({ lot }: { lot: LotMetrics }) {
 export function InvestedCell({ lot }: { lot: LotMetrics }) {
   return (
     <div className="flex flex-col">
-      <div className={primary}>{formatUsd(lot.grossPurchaseCost)}</div>
+      <div className={primary}>{formatAmount(lot.grossPurchaseCost)}</div>
+      {/* Buy price per coin lives here (not under Bought) so no cell needs three lines. */}
+      <div className={secondary}>@ {formatPrice(lot.buyPrice)}</div>
       {lot.buyFee.gt(0) && <div className={secondary}>+{formatUsd(lot.buyFee)} fee</div>}
     </div>
   )

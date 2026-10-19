@@ -131,6 +131,28 @@ describe('investments RLS', () => {
     expect(def.rows[0]!.long_term).toBe(false)
   })
 
+  it('owner can set and clear the exchange; it is limited to 40 characters', async () => {
+    const set = await asUser(db, ALICE, (tx) =>
+      tx.query<{ exchange: string | null }>("update public.investments set exchange = 'Binance' where id = $1 returning exchange", [aliceLot]),
+    )
+    expect(set.rows[0]!.exchange).toBe('Binance')
+    const other = await asUser(db, ALICE, (tx) => tx.query("update public.investments set exchange = 'Binance' where id = $1", [bobLot]))
+    expect(other.affectedRows).toBe(0)
+    await asUser(db, ALICE, (tx) => tx.query('update public.investments set exchange = null where id = $1', [aliceLot]))
+    // insertLot doesn't send exchange, so insert directly (the column grant allows it).
+    const insertOn = (exchange: string) =>
+      asUser(db, ALICE, (tx) =>
+        tx.query(
+          `insert into public.investments (coin_id, coin_name, symbol, buy_date, buy_price, quantity, exchange)
+           values ('bitcoin', 'Bitcoin', 'BTC', '2024-01-01', '1', '1', $1) returning id`,
+          [exchange],
+        ),
+      )
+    await expect(insertOn('x'.repeat(41))).rejects.toThrow(/check constraint/)
+    await expect(insertOn('   ')).rejects.toThrow(/check constraint/)
+    expect((await insertOn('MetaMask')).rows).toHaveLength(1)
+  })
+
   it('enforces CHECK constraints for price, quantity and fees', async () => {
     await expect(insertLot(ALICE, { buy_price: '0' })).rejects.toThrow(/check constraint/)
     await expect(insertLot(ALICE, { quantity: '-1' })).rejects.toThrow(/check constraint/)
@@ -348,6 +370,17 @@ describe('import_investments (bulk import)', () => {
   it("imported lots are invisible to other users", async () => {
     expect(await countCoin(BOB, 'cardano')).toBe(0)
     expect(await countCoin(ALICE, 'cardano')).toBe(1)
+  })
+
+  it('saves the exchange of each imported lot (blank = not set)', async () => {
+    await runImport(ALICE, [lot('tron', { exchange: 'Uniswap' }), lot('stellar', { exchange: '  ' })])
+    const rows = await db.query<{ coin_id: string; exchange: string | null }>(
+      `select coin_id, exchange from public.investments where coin_id in ('tron', 'stellar') order by coin_id`,
+    )
+    expect(rows.rows).toEqual([
+      { coin_id: 'stellar', exchange: null },
+      { coin_id: 'tron', exchange: 'Uniswap' },
+    ])
   })
 
   it('is all-or-nothing: one invalid sale rolls back the whole import', async () => {

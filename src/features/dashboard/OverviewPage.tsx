@@ -15,16 +15,8 @@ export function OverviewPage() {
 
   return (
     <>
-      <PageHeader
-        title="Overview"
-        description="Portfolio totals across all of your investments."
-        actions={
-          <Link to="/investments" state={{ openAdd: true }} className={`${linkButton} bg-primary-solid text-primary-foreground hover:bg-primary-solid-hover`}>
-            <Plus className="h-4 w-4" aria-hidden />
-            Add Investment
-          </Link>
-        }
-      />
+      {/* Investments are added from the Investments page; only an empty portfolio offers a shortcut here. */}
+      <PageHeader title="Overview" description="Portfolio totals across all of your investments." />
       <PortfolioGate>
         {empty ? (
           <div className="surface-card">

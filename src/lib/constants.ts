@@ -23,6 +23,8 @@ export const LIMITS = {
   quantityIntegerDigits: 18,
   quantityDecimals: 18,
   noteMax: 2000,
+  /** investments.exchange (007_investment_exchange.sql) */
+  exchangeMax: 40,
   saleNoteMax: 1000,
   portfolioNoteMax: 20000,
 } as const
@@ -40,4 +42,21 @@ export const COMMON_COINS = [
   { id: 'cardano', name: 'Cardano', symbol: 'ADA' },
   { id: 'dogecoin', name: 'Dogecoin', symbol: 'DOGE' },
   { id: 'polkadot', name: 'Polkadot', symbol: 'DOT' },
+] as const
+
+/**
+ * Exchanges and wallets suggested in the "Bought on" picker. Users can add any other name;
+ * names they have used are suggested too (see features/investments/exchanges.ts).
+ */
+export const EXCHANGE_PRESETS = [
+  'Binance',
+  'MetaMask',
+  'MEXC',
+  'OKX',
+  'Coinbase',
+  'KuCoin',
+  'Trust Wallet',
+  'Phantom',
+  'Uniswap',
+  'PancakeSwap',
 ] as const

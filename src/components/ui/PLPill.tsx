@@ -3,7 +3,8 @@ import type { Dec } from '@/lib/decimal'
 import { PLValue } from './PLValue'
 
 /**
- * Profit/loss amount as a soft pill: tinted background + arrow + signed value.
+ * Profit/loss amount as a soft pill (the investments table's Profit / Loss column): tinted
+ * background + arrow + signed value, at most 2 decimals and no ".00" (formatAmount).
  * Uses the same 8% tint as status badges (contrast-tested on every row color).
  */
 export function PLPill({ value, size = 'md' }: { value: Dec | null; size?: 'sm' | 'md' }) {
@@ -17,7 +18,7 @@ export function PLPill({ value, size = 'md' }: { value: Dec | null; size?: 'sm' 
         tone,
       )}
     >
-      <PLValue value={value} iconClassName="h-3.5 w-3.5" />
+      <PLValue value={value} format="amount" iconClassName="h-3.5 w-3.5" />
     </span>
   )
 }

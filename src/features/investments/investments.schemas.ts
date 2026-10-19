@@ -136,6 +136,8 @@ export function makeInvestmentFormSchema(opts: { firstSaleDate?: string | null; 
       optional: true,
     }),
     longTerm: z.boolean(),
+    /** '' = not set */
+    exchange: z.string().max(LIMITS.exchangeMax, `Exchange must be at most ${LIMITS.exchangeMax} characters`).default(''),
     note: z.string().max(LIMITS.noteMax, `Note must be at most ${LIMITS.noteMax} characters`),
   })
 }
@@ -146,7 +148,7 @@ export type InvestmentFormInput = z.input<typeof investmentFormSchema>
 export type InvestmentFormValues = z.output<typeof investmentFormSchema>
 
 export function defaultInvestmentValues(inv?: Investment): InvestmentFormInput {
-  if (!inv) return { coin: null, buyDate: todayIso(), buyPrice: '', quantity: '', buyFee: '', longTerm: false, note: '' }
+  if (!inv) return { coin: null, buyDate: todayIso(), buyPrice: '', quantity: '', buyFee: '', longTerm: false, exchange: '', note: '' }
   return {
     coin: { id: inv.coinId, name: inv.coinName, symbol: inv.symbol },
     buyDate: inv.buyDate,
@@ -154,6 +156,7 @@ export function defaultInvestmentValues(inv?: Investment): InvestmentFormInput {
     quantity: new D(inv.quantity).toFixed(),
     buyFee: new D(inv.buyFee).isZero() ? '' : new D(inv.buyFee).toFixed(),
     longTerm: inv.longTerm,
+    exchange: inv.exchange ?? '',
     note: inv.note ?? '',
   }
 }
@@ -168,6 +171,7 @@ export function toInvestmentInput(v: InvestmentFormValues): InvestmentInput {
     quantity: v.quantity.trim(),
     buyFee: v.buyFee.trim() || '0',
     longTerm: v.longTerm,
+    exchange: v.exchange.trim() || null,
     note: v.note.trim() || null,
   }
 }

@@ -5,6 +5,7 @@ import { AlertTriangle, WifiOff } from 'lucide-react'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { AppHeader } from '@/components/layout/AppHeader'
 import { AppSidebar } from '@/components/layout/AppSidebar'
+import { MobileNavDrawer } from '@/components/layout/MobileNavDrawer'
 import { PageContainer } from '@/components/layout/PageContainer'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { useToast } from '@/components/ui/toast.context'
@@ -86,6 +87,7 @@ export function DashboardLayout() {
     }
   }
 
+  const [menuOpen, setMenuOpen] = useState(false)
   const online = useOnlineStatus()
   // Offline already has its own banner; a "network error" on top of it adds nothing.
   const priceError = prices.error && online ? describeMarketDataError(prices.error) : null
@@ -102,6 +104,21 @@ export function DashboardLayout() {
             pricesRefreshing={prices.isFetching}
             priceError={priceError}
             onRefreshPrices={() => void prices.refresh()}
+            onImport={() => fileInputRef.current?.click()}
+            importDisabled={!investments}
+            onExport={handleExport}
+            exporting={exporting}
+            exportDisabled={!investments || investments.length === 0}
+            onSignOut={handleSignOut}
+            onOpenMenu={() => setMenuOpen(true)}
+            menuOpen={menuOpen}
+          />
+          <MobileNavDrawer
+            open={menuOpen}
+            onClose={() => setMenuOpen(false)}
+            email={user?.email ?? null}
+            onRefreshPrices={() => void prices.refresh()}
+            pricesRefreshing={prices.isFetching}
             onImport={() => fileInputRef.current?.click()}
             importDisabled={!investments}
             onExport={handleExport}

@@ -14,9 +14,11 @@ interface InvestmentDialogProps {
   onClose: () => void
   /** When provided the dialog edits this lot. */
   lot?: LotMetrics | null
+  /** Suggestions for "Bought on" (exchangeOptions of all investments). */
+  exchangeOptions: string[]
 }
 
-export function InvestmentDialog({ open, onClose, lot }: InvestmentDialogProps) {
+export function InvestmentDialog({ open, onClose, lot, exchangeOptions }: InvestmentDialogProps) {
   const { create, update } = useInvestmentMutations()
   const toast = useToast()
   const [error, setError] = useState<string | null>(null)
@@ -64,6 +66,7 @@ export function InvestmentDialog({ open, onClose, lot }: InvestmentDialogProps) 
           initial={editing}
           soldQuantity={lot?.soldQuantity.toFixed()}
           firstSaleDate={lot?.sales[0]?.sale.soldDate ?? null}
+          exchangeOptions={exchangeOptions}
           submitLabel={editing ? 'Save changes' : 'Add investment'}
           onSubmit={handleSubmit}
           onCancel={close}

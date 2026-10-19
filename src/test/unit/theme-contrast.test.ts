@@ -76,16 +76,16 @@ describe.each(Object.entries(THEMES))('%s theme contrast', (name, t) => {
   })
 
   // Status-tinted table rows (and their hover shade). Inside them, secondary text and
-  // profit text use the --row-* overrides (see [data-row-tone] in index.css).
+  // profit/loss text use the --row-* overrides (see [data-row-tone] in index.css).
   const ROWS = ['row-holding', 'row-long-term', 'row-profit', 'row-loss'].flatMap((r) => [r, `${r}-hover`])
   it.each(ROWS)(`${name}: text on --%s is readable`, (row) => {
     const bg = t[row]!
     expect(contrast(t.foreground!, bg)).toBeGreaterThanOrEqual(7)
-    for (const text of ['row-muted-foreground', 'row-success-text', 'destructive-text', 'primary-text', 'long-term-text', 'row-warning-text']) {
+    for (const text of ['row-muted-foreground', 'row-success-text', 'row-destructive-text', 'primary-text', 'long-term-text', 'row-warning-text']) {
       expect(contrast(t[text]!, bg), `--${text} on --${row}`).toBeGreaterThanOrEqual(4.5)
     }
     // Status badges sit on the row tint with their own 8% tint.
-    const badges: [string, string][] = [['row-success-text', 'success'], ['destructive-text', 'destructive'], ['primary-text', 'primary'], ['long-term-text', 'long-term'], ['row-warning-text', 'warning']]
+    const badges: [string, string][] = [['row-success-text', 'success'], ['row-destructive-text', 'destructive'], ['primary-text', 'primary'], ['long-term-text', 'long-term'], ['row-warning-text', 'warning']]
     for (const [text, tint] of badges) {
       expect(contrast(t[text]!, blend(t[tint]!, 0.08, bg)), `badge --${text} on --${row}`).toBeGreaterThanOrEqual(4.5)
     }

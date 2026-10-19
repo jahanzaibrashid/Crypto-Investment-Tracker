@@ -30,6 +30,7 @@ describe('investmentFormSchema', () => {
       quantity: '0.015',
       buyFee: '0',
       longTerm: false,
+      exchange: null, // optional; not set
       note: null,
     })
   })
@@ -92,7 +93,7 @@ describe('sale form schema', () => {
     expect(schema.safeParse(sale).success).toBe(true)
   })
   it('rejects selling more than remaining', () => {
-    expect(errorsOf(schema.safeParse({ ...sale, quantity: '0.6' })).quantity).toMatch(/at most 0.5/)
+    expect(errorsOf(schema.safeParse({ ...sale, quantity: '0.6' })).quantity).toMatch(/Maximum is 0.5 \(quantity held\)/)
   })
   it('rejects a sale before the buy date', () => {
     expect(errorsOf(schema.safeParse({ ...sale, soldDate: '2024-01-14' })).soldDate).toMatch(/before the buy date/)

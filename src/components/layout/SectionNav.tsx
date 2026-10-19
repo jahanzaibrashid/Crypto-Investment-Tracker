@@ -9,26 +9,26 @@ const PAGES = [
   { to: '/notes', label: 'Notes', icon: NotebookPen },
 ] as const
 
-/** Page navigation: vertical in the desktop sidebar, scrollable pills on small screens. The current page is highlighted. */
-export function SectionNav({ variant }: { variant: 'sidebar' | 'pills' }) {
-  const sidebar = variant === 'sidebar'
+/**
+ * Page navigation, used in the desktop sidebar and the mobile drawer. The current page is
+ * highlighted. `onNavigate` runs after a link is chosen (the drawer closes itself with it).
+ */
+export function SectionNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <nav aria-label="Main" className={sidebar ? 'flex flex-col gap-0.5' : '-mx-1 flex gap-1 overflow-x-auto px-1 pb-0.5 scrollbar-none'}>
+    <nav aria-label="Main" className="flex flex-col gap-0.5">
       {PAGES.map(({ to, label, icon: Icon }) => (
         <NavLink
           key={to}
           to={to}
+          onClick={onNavigate}
           className={({ isActive }) =>
             cn(
-              'flex shrink-0 items-center gap-2 font-medium transition-colors',
-              sidebar ? 'rounded-lg px-2.5 py-2 text-sm' : 'rounded-full border px-3 py-1 text-xs',
-              isActive
-                ? cn('bg-primary/10 text-primary-text', !sidebar && 'border-primary/40')
-                : cn('text-muted-foreground hover:bg-muted hover:text-foreground', !sidebar && 'border-border'),
+              'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors pointer-coarse:py-2.5',
+              isActive ? 'bg-primary/10 text-primary-text' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
             )
           }
         >
-          <Icon className={sidebar ? 'h-4 w-4' : 'h-3.5 w-3.5'} aria-hidden />
+          <Icon className="h-4 w-4" aria-hidden />
           {label}
         </NavLink>
       ))}

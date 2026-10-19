@@ -56,6 +56,14 @@ export function formatUsd(value: Num, opts: { signed?: boolean; maxDecimals?: nu
 }
 
 /**
+ * USD amount in the investments table (Invested, Profit / Loss): at most 2 decimals, rounded,
+ * and no ".00" on whole dollars — $20, $20.11, $20.587987 → $20.59.
+ */
+export function formatAmount(value: Num, opts: { signed?: boolean } = {}): string {
+  return formatUsd(value, { maxDecimals: 2, dropZeroCents: true, signed: opts.signed })
+}
+
+/**
  * Price of a single coin, shown the way it was entered: whole-dollar prices have no ".00"
  * ($2,300), prices with cents keep two decimals ($2,300.50), and micro-priced tokens get
  * up to 12 decimals so they never collapse to $0.00 ($0.00001234).

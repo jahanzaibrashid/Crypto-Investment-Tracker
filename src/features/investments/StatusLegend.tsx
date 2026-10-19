@@ -25,8 +25,14 @@ export function StatusLegend({
   for (const l of lots) counts[positionKind(l)]++
 
   return (
-    <div role="group" aria-label="Row colors — click to filter by status" className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-xs text-muted-foreground">Row colors:</span>
+    // Phones: one swipeable line running to the card edges (no wrapping, no "Row colors" label).
+    // Larger screens: the labelled, wrapping row.
+    <div
+      role="group"
+      aria-label="Row colors — click to filter by status"
+      className="-mx-4 flex scrollbar-none items-center gap-1.5 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0"
+    >
+      <span className="mr-1 hidden text-xs text-muted-foreground sm:inline">Row colors:</span>
       {KINDS.map(({ kind, label, bg, stripe }) => {
         const isActive = active === kind
         return (
@@ -38,7 +44,7 @@ export function StatusLegend({
             onClick={() => onSelect(isActive ? 'ALL' : kind)}
             title={isActive ? 'Show all statuses' : `Show only ${label}`}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted pointer-coarse:py-1.5',
+              'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap text-foreground transition-colors hover:bg-muted pointer-coarse:py-1.5',
               isActive ? 'border-primary ring-1 ring-primary/30' : 'border-border',
             )}
           >

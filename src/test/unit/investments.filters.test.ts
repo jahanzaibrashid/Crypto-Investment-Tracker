@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EMPTY_FILTERS, filterLots, hasActiveFilters, soldPeriodOptions, soldPeriodRange } from '@/features/investments/investments.filters'
+import { EMPTY_FILTERS, NO_EXCHANGE, filterLots, hasActiveFilters, soldPeriodOptions, soldPeriodRange } from '@/features/investments/investments.filters'
 import { computeLot, summarizePortfolio } from '@/features/investments/investments.utils'
 import { makeInvestment, makeSale, priceLookup } from '../fixtures'
 
@@ -69,5 +69,27 @@ describe('filterLots with a sale period', () => {
 
   it('leaves the list alone for all time', () => {
     expect(filterLots(all, EMPTY_FILTERS, TODAY)).toEqual(all)
+  })
+})
+
+describe('filterLots by exchange ("Bought on")', () => {
+  const on = (exchange: string | null, soldDate: string | null = null) =>
+    computeLot(makeInvestment({ exchange, sales: soldDate ? [makeSale({ soldDate, quantity: '1', price: '150' })] : [] }), prices)
+  const binanceSoldOct = on('Binance', '2026-10-02')
+  const binanceHeld = on('Binance')
+  const metamask = on('MetaMask', '2026-10-03')
+  const unset = on(null)
+  const all = [binanceSoldOct, binanceHeld, metamask, unset]
+
+  it('keeps one platform (ignoring case)', () => {
+    const f = { ...EMPTY_FILTERS, exchange: 'binance' }
+    expect(hasActiveFilters(f)).toBe(true)
+    expect(filterLots(all, f, TODAY)).toEqual([binanceSoldOct, binanceHeld])
+  })
+  it('finds investments with no platform set', () => {
+    expect(filterLots(all, { ...EMPTY_FILTERS, exchange: NO_EXCHANGE }, TODAY)).toEqual([unset])
+  })
+  it('combines with the sale period', () => {
+    expect(filterLots(all, { ...EMPTY_FILTERS, exchange: 'Binance', soldIn: '2026-10' }, TODAY)).toEqual([binanceSoldOct])
   })
 })

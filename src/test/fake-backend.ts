@@ -51,6 +51,7 @@ export function seedInvestment(partial: Partial<Investment> & Pick<Investment, '
     buyFee: '0',
     status: 'HOLDING',
     longTerm: false,
+    exchange: null,
     sortOrder: nextSortOrder++,
     note: null,
     createdAt: now(),

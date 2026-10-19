@@ -213,7 +213,7 @@ export function SellDialog({ lot, onClose }: { lot: LotMetrics | null; onClose: 
       title={inv ? `Sell ${inv.coinName} (${inv.symbol})` : 'Sell'}
       description={
         inv
-          ? `Bought ${formatQuantity(inv.quantity)} ${inv.symbol} on ${formatDate(inv.buyDate)}. Sell all to mark it as Sold, or sell part and keep the rest.`
+          ? `Bought ${formatQuantity(inv.quantity)} ${inv.symbol} on ${formatDate(inv.buyDate)}${inv.exchange ? ` (${inv.exchange})` : ''}. Sell all to mark it as Sold, or sell part and keep the rest.`
           : undefined
       }
       size="lg"

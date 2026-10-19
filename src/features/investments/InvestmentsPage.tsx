@@ -13,6 +13,7 @@ import { PortfolioGate } from '@/features/dashboard/DashboardLayout'
 import { usePortfolio } from '@/features/dashboard/portfolio.context'
 import { InvestmentDetails } from './InvestmentDetails'
 import { InvestmentDialog } from './InvestmentDialog'
+import { exchangeOptions } from './exchanges'
 import { InvestmentFilters } from './InvestmentFilters'
 import { InvestmentTable } from './InvestmentTable'
 import { NoteDialog } from './NoteDialog'
@@ -34,6 +35,7 @@ export function InvestmentsPage() {
 
   const [filters, setFilters] = useState<InvestmentFilterState>(EMPTY_FILTERS)
   const visibleLots = useMemo(() => filterLots(lots, filters), [lots, filters])
+  const exchangeChoices = useMemo(() => exchangeOptions(lots.map((l) => l.investment)), [lots])
 
   // "Add Investment" links from other pages arrive with { openAdd: true }.
   const [dialog, setDialog] = useState<DialogState>(() =>
@@ -116,7 +118,12 @@ export function InvestmentsPage() {
         </section>
       </PortfolioGate>
 
-      <InvestmentDialog open={dialog.kind === 'add' || dialog.kind === 'edit'} lot={lotFor('edit')} onClose={closeDialog} />
+      <InvestmentDialog
+        open={dialog.kind === 'add' || dialog.kind === 'edit'}
+        lot={lotFor('edit')}
+        exchangeOptions={exchangeChoices}
+        onClose={closeDialog}
+      />
       <SellDialog lot={lotFor('sell')} onClose={closeDialog} />
       <InvestmentDetails lot={lotFor('view')} onClose={closeDialog} />
       <NoteDialog investment={lotFor('note')?.investment ?? null} onClose={closeDialog} />

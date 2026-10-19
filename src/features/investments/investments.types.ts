@@ -28,6 +28,8 @@ export interface Investment {
   status: InvestmentStatus
   /** User-chosen: an open position intended to be held long-term. */
   longTerm: boolean
+  /** Exchange or wallet the coins were bought on ("Binance", "MetaMask", …); null = not set. */
+  exchange: string | null
   /** Saved position among open lots: higher = nearer the top. New lots get the highest value. */
   sortOrder: number
   note: string | null
@@ -51,6 +53,7 @@ export interface InvestmentInput {
   quantity: DecimalString
   buyFee: DecimalString
   longTerm: boolean
+  exchange: string | null
   note: string | null
 }
 

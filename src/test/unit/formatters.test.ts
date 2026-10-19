@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { D } from '@/lib/decimal'
-import { DATE_FORMAT_EXAMPLE, formatDate, formatPercent, formatPrice, formatQuantity, formatUsd, parseDate, todayIso } from '@/lib/formatters'
+import { DATE_FORMAT_EXAMPLE, formatAmount, formatDate, formatPercent, formatPrice, formatQuantity, formatUsd, parseDate, todayIso } from '@/lib/formatters'
 
 describe('formatUsd / formatPrice', () => {
   it('formats normal amounts with 2 decimals and grouping', () => {
@@ -34,6 +34,15 @@ describe('formatPrice', () => {
     expect(formatPrice('2300.55')).toBe('$2,300.55')
     expect(formatPrice('0.00001234')).toBe('$0.00001234')
     expect(formatPrice('0')).toBe('$0.00')
+  })
+  it('formatAmount: at most 2 decimals, rounded, no .00 on whole dollars (table amounts)', () => {
+    expect(formatAmount('20')).toBe('$20')
+    expect(formatAmount('20.11')).toBe('$20.11')
+    expect(formatAmount('20.1')).toBe('$20.10')
+    expect(formatAmount('20.587987')).toBe('$20.59')
+    expect(formatAmount('19.999')).toBe('$20')
+    expect(formatAmount('4990', { signed: true })).toBe('+$4,990')
+    expect(formatAmount('-12.345', { signed: true })).toBe('-$12.35')
   })
   it('formatUsd can drop zero cents for whole-dollar amounts', () => {
     expect(formatUsd('335', { dropZeroCents: true })).toBe('$335')

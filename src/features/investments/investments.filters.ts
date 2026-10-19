@@ -16,12 +16,17 @@ export interface InvestmentFilterState {
   from: string
   to: string
   soldIn: SoldPeriod
+  /** "Bought on": '' = all, NO_EXCHANGE = not set, otherwise an exchange name (case-insensitive). */
+  exchange: string
 }
 
-export const EMPTY_FILTERS: InvestmentFilterState = { search: '', status: 'ALL', from: '', to: '', soldIn: '' }
+/** Filter value for investments without an exchange. */
+export const NO_EXCHANGE = '__none__'
+
+export const EMPTY_FILTERS: InvestmentFilterState = { search: '', status: 'ALL', from: '', to: '', soldIn: '', exchange: '' }
 
 export function hasActiveFilters(f: InvestmentFilterState): boolean {
-  return f.search.trim() !== '' || f.status !== 'ALL' || f.from !== '' || f.to !== '' || f.soldIn !== ''
+  return f.search.trim() !== '' || f.status !== 'ALL' || f.from !== '' || f.to !== '' || f.soldIn !== '' || f.exchange !== ''
 }
 
 /** Rolling windows, in days including today. */
@@ -90,6 +95,11 @@ export function filterLots(lots: LotMetrics[], f: InvestmentFilterState, today =
     if (f.status !== 'ALL' && positionKind(lot) !== f.status) return false
     if (f.from && inv.buyDate < f.from) return false
     if (f.to && inv.buyDate > f.to) return false
+    if (f.exchange === NO_EXCHANGE) {
+      if (inv.exchange) return false
+    } else if (f.exchange && inv.exchange?.toLowerCase() !== f.exchange.toLowerCase()) {
+      return false
+    }
     if (sold) {
       // Sold investments only (held and partly sold coins are left out), dated by the sale that closed them.
       const closed = lot.status === 'SOLD' ? lastSoldDate(lot) : null

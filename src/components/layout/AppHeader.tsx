@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Download, LogOut, RefreshCw, Upload, UserCircle2 } from 'lucide-react'
+import { ChevronDown, Download, LogOut, Menu, RefreshCw, Upload, UserCircle2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
-import { SectionNav } from './SectionNav'
+import { MOBILE_NAV_ID } from './MobileNavDrawer'
 import { APP_NAME } from '@/lib/constants'
 import { formatDate, formatRelative, formatTime } from '@/lib/formatters'
 import { useNow } from '@/hooks/useNow'
@@ -21,6 +21,9 @@ export interface AppHeaderProps {
   exporting: boolean
   exportDisabled: boolean
   onSignOut: () => void
+  /** Opens the navigation drawer (below lg). */
+  onOpenMenu: () => void
+  menuOpen: boolean
 }
 
 function AccountMenu({ email, onSignOut }: { email: string | null; onSignOut: () => void }) {
@@ -83,28 +86,43 @@ export function AppHeader(props: AppHeaderProps) {
   const today = `${new Date(now).toLocaleDateString('en-US', { weekday: 'short' })}, ${formatDate(new Date(now))}`
 
   return (
-    // Phones: title on its own row and actions below it, and the header scrolls away instead of
-    // pinning ~150px of the screen. From `sm` up it is one row and stays pinned.
-    <header className="z-20 border-b border-border bg-card sm:sticky sm:top-0">
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-x-4 gap-y-2 px-3 py-3 sm:px-6">
-        <div className="min-w-0 flex-1 basis-full sm:basis-0">
+    // One compact row, pinned on every screen size. Below lg the pages are in the drawer opened by ☰;
+    // on phones the import/export/theme/account controls move into that drawer too.
+    <header className="sticky top-0 z-20 border-b border-border bg-card pt-[env(safe-area-inset-top)]">
+      <div className="mx-auto flex max-w-[1600px] items-center gap-2 px-4 py-2.5 sm:gap-4 sm:px-6 sm:py-3">
+        <button
+          type="button"
+          onClick={props.onOpenMenu}
+          aria-label="Open menu"
+          aria-haspopup="dialog"
+          aria-expanded={props.menuOpen}
+          aria-controls={props.menuOpen ? MOBILE_NAV_ID : undefined}
+          className="-ml-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-foreground hover:bg-muted lg:hidden"
+        >
+          <Menu className="h-5 w-5" aria-hidden />
+        </button>
+        <div className="min-w-0 flex-1">
           <h1 className="truncate text-base font-semibold text-foreground sm:text-lg">{APP_NAME}</h1>
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-            <time dateTime={new Date(now).toISOString().slice(0, 10)}>{today}</time>
-            <span aria-hidden>·</span>
-            <span data-testid="price-updated">
+          <div className="flex min-w-0 items-center gap-x-2 text-xs text-muted-foreground">
+            <time className="hidden shrink-0 sm:inline" dateTime={new Date(now).toISOString().slice(0, 10)}>
+              {today}
+            </time>
+            <span className="hidden sm:inline" aria-hidden>
+              ·
+            </span>
+            <span className="truncate" data-testid="price-updated">
               {props.lastPriceUpdate
                 ? `Prices updated ${formatTime(props.lastPriceUpdate)} (${formatRelative(props.lastPriceUpdate, now)})`
                 : 'Prices not loaded yet'}
             </span>
             {props.pricesStale && (
-              <Badge tone="warning" title={props.priceError ?? 'Prices may be out of date'}>
+              <Badge tone="warning" className="shrink-0" title={props.priceError ?? 'Prices may be out of date'}>
                 Stale prices
               </Badge>
             )}
           </div>
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <Button
             variant="secondary"
             onClick={props.onRefreshPrices}
@@ -114,31 +132,31 @@ export function AppHeader(props: AppHeaderProps) {
           >
             <span className="hidden md:inline">Refresh Prices</span>
           </Button>
-          <Button
-            variant="secondary"
-            onClick={props.onImport}
-            disabled={props.importDisabled}
-            aria-label="Import from Excel"
-            icon={<Upload className="h-4 w-4" aria-hidden />}
-          >
-            <span className="hidden md:inline">Import</span>
-          </Button>
-          <Button
-            variant="primary"
-            onClick={props.onExport}
-            loading={props.exporting}
-            disabled={props.exportDisabled}
-            aria-label="Export to Excel"
-            icon={<Download className="h-4 w-4" aria-hidden />}
-          >
-            <span className="hidden md:inline">Export to Excel</span>
-          </Button>
-          <ThemeToggle />
-          <AccountMenu email={props.email} onSignOut={props.onSignOut} />
+          {/* Phones: these live in the drawer. */}
+          <div className="hidden items-center gap-2 sm:flex">
+            <Button
+              variant="secondary"
+              onClick={props.onImport}
+              disabled={props.importDisabled}
+              aria-label="Import from Excel"
+              icon={<Upload className="h-4 w-4" aria-hidden />}
+            >
+              <span className="hidden md:inline">Import</span>
+            </Button>
+            <Button
+              variant="primary"
+              onClick={props.onExport}
+              loading={props.exporting}
+              disabled={props.exportDisabled}
+              aria-label="Export to Excel"
+              icon={<Download className="h-4 w-4" aria-hidden />}
+            >
+              <span className="hidden md:inline">Export to Excel</span>
+            </Button>
+            <ThemeToggle />
+            <AccountMenu email={props.email} onSignOut={props.onSignOut} />
+          </div>
         </div>
-      </div>
-      <div className="mx-auto max-w-[1600px] px-3 pb-2.5 sm:px-6 lg:hidden">
-        <SectionNav variant="pills" />
       </div>
     </header>
   )

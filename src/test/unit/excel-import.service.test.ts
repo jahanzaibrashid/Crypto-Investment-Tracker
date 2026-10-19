@@ -31,9 +31,9 @@ const INV_HEADER = ['Coin', 'Symbol', 'CoinGecko ID', 'Buy Date', 'Buy Price (US
 const SALE_HEADER = ['CoinGecko ID', 'Buy Date', 'Sale Date', 'Quantity Sold', 'Sale Price (USD)', 'Sale Fee (USD)']
 
 describe('parseImportWorkbook', () => {
-  it('round-trips an export: purchases, fees, notes, long-term flag and sales', () => {
+  it('round-trips an export: purchases, fees, notes, long-term flag, exchange and sales', () => {
     const data = exported([
-      makeInvestment({ id: 'a', quantity: '2', buyPrice: '100', buyFee: '10', note: '=SUM(A1)', longTerm: true }),
+      makeInvestment({ id: 'a', quantity: '2', buyPrice: '100', buyFee: '10', note: '=SUM(A1)', longTerm: true, exchange: 'Binance' }),
       makeInvestment({
         id: 'b',
         coinId: 'ethereum',
@@ -57,6 +57,7 @@ describe('parseImportWorkbook', () => {
         quantity: '2',
         buyFee: '10',
         longTerm: true,
+        exchange: 'Binance',
         note: '=SUM(A1)', // the export's formula guard is removed again
         sales: [],
       },
@@ -69,6 +70,7 @@ describe('parseImportWorkbook', () => {
         quantity: '1.5',
         buyFee: '0',
         longTerm: false,
+        exchange: null,
         note: null,
         sales: [{ soldDate: '2024-03-01', quantity: '0.5', price: '3000', fee: '2', note: 'partial' }],
       },
@@ -117,7 +119,7 @@ describe('parseImportWorkbook', () => {
     expect(lots).toEqual([])
     expect(errors).toEqual([
       { sheet: 'Investments', row: 2, message: expect.stringMatching(/sale on Sales History row 2 is invalid/) },
-      { sheet: 'Sales History', row: 2, message: expect.stringMatching(/at most 1/) },
+      { sheet: 'Sales History', row: 2, message: expect.stringMatching(/Maximum is 1 \(quantity held\)/) },
     ])
   })
 
@@ -153,7 +155,7 @@ describe('splitDuplicates', () => {
       const inv = makeInvestment(r)
       return {
         row: i + 2,
-        lot: { coinId: inv.coinId, coinName: inv.coinName, symbol: inv.symbol, buyDate: inv.buyDate, buyPrice: inv.buyPrice, quantity: inv.quantity, buyFee: inv.buyFee, longTerm: false, note: null, sales: [] },
+        lot: { coinId: inv.coinId, coinName: inv.coinName, symbol: inv.symbol, buyDate: inv.buyDate, buyPrice: inv.buyPrice, quantity: inv.quantity, buyFee: inv.buyFee, longTerm: false, exchange: null, note: null, sales: [] },
       }
     })
 

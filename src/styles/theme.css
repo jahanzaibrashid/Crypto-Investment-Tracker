@@ -59,18 +59,20 @@
   --long-term: #a47648;
   --long-term-text: #6f4e24;
 
-  /* Light row backgrounds per status, and their hover shade. */
-  --row-holding: #eff6ff;
-  --row-holding-hover: #e5efff;
-  --row-long-term: #f6efe0;
-  --row-long-term-hover: #efe4cd;
-  --row-profit: #f0fdf4;
-  --row-profit-hover: #e4f9eb;
-  --row-loss: #fef2f2;
-  --row-loss-hover: #fde8e8;
-  /* Inside tinted rows #64748B / #15803D / #B45309 fall just under 4.5:1, so tinted rows use these. */
-  --row-muted-foreground: #566479;
+  /* Light row backgrounds per status, and their hover shade: the "100" step (not "50"),
+     so the status colors stay visible against the white card. */
+  --row-holding: #dbeafe;
+  --row-holding-hover: #cfe0fc;
+  --row-long-term: #f1e6cf;
+  --row-long-term-hover: #ecdfc5;
+  --row-profit: #dcfce7;
+  --row-profit-hover: #cdf7da;
+  --row-loss: #fee2e2;
+  --row-loss-hover: #fdd5d5;
+  /* Text inside tinted rows, kept at ≥ 4.5:1 on every row color and its hover shade. */
+  --row-muted-foreground: #4f5d71;
   --row-success-text: #166534;
+  --row-destructive-text: #991b1b;
   --row-warning-text: #92400e;
 
   --overlay: rgb(15 23 42 / 0.45);
@@ -128,6 +130,7 @@
   --row-loss-hover: #371b1f;
   --row-muted-foreground: #94a3b8;
   --row-success-text: #4ade80;
+  --row-destructive-text: #f87171;
   --row-warning-text: #fbbf24;
 
   --overlay: rgb(2 6 23 / 0.7);

@@ -1,17 +1,8 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
-
-const NOT_SKIPPED = ':not([tabindex="-1"])'
-const FOCUSABLE = [
-  `a[href]${NOT_SKIPPED}`,
-  `button:not([disabled])${NOT_SKIPPED}`,
-  `input:not([disabled])${NOT_SKIPPED}`,
-  `select:not([disabled])${NOT_SKIPPED}`,
-  `textarea:not([disabled])${NOT_SKIPPED}`,
-  `[tabindex]${NOT_SKIPPED}`,
-].join(', ')
+import { useModal } from '@/hooks/useModal'
 
 export interface DialogProps {
   open: boolean
@@ -33,49 +24,7 @@ export function Dialog({ open, onClose, title, description, children, footer, si
   const titleId = useId()
   const descId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
-  const onCloseRef = useRef(onClose)
-  const dismissibleRef = useRef(dismissible)
-
-  useEffect(() => {
-    onCloseRef.current = onClose
-    dismissibleRef.current = dismissible
-  })
-
-  useEffect(() => {
-    if (!open) return
-    const previouslyFocused = document.activeElement as HTMLElement | null
-    const panel = panelRef.current
-    const first = panel?.querySelector<HTMLElement>('[data-autofocus]') ?? panel?.querySelector<HTMLElement>(FOCUSABLE)
-    ;(first ?? panel)?.focus()
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && dismissibleRef.current) {
-        e.stopPropagation()
-        onCloseRef.current()
-      }
-      if (e.key === 'Tab' && panel) {
-        const items = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null || el === document.activeElement)
-        if (items.length === 0) return
-        const firstEl = items[0]!
-        const lastEl = items[items.length - 1]!
-        if (e.shiftKey && document.activeElement === firstEl) {
-          e.preventDefault()
-          lastEl.focus()
-        } else if (!e.shiftKey && document.activeElement === lastEl) {
-          e.preventDefault()
-          firstEl.focus()
-        }
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    const prevOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = prevOverflow
-      previouslyFocused?.focus?.()
-    }
-  }, [open])
+  useModal(open, panelRef, onClose, dismissible)
 
   if (!open) return null
 

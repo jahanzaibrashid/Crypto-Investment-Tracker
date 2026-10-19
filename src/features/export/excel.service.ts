@@ -78,6 +78,7 @@ export const INVESTMENT_HEADERS = [
   'Net Sale Proceeds (USD)',
   'Sale Fees (USD)',
   'Note',
+  'Exchange',
   // Used by Import: the long-term flag, and a key that links rows in Sales History to their lot.
   'Long-term',
   'Lot ID',
@@ -138,6 +139,7 @@ function investmentRow(lot: LotMetrics): Cell[] {
     hasSales ? num(lot.netSaleProceeds, FMT.usd) : blank(),
     hasSales ? num(saleFees, FMT.usd) : blank(),
     text(inv.note),
+    text(inv.exchange),
     text(inv.longTerm ? 'Yes' : 'No'),
     text(inv.id),
   ]

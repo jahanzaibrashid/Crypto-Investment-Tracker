@@ -1,7 +1,7 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import type { Dec } from '@/lib/decimal'
-import { formatPercent, formatUsd, plClass } from '@/lib/formatters'
+import { formatAmount, formatPercent, formatUsd, plClass } from '@/lib/formatters'
 
 /**
  * A profit/loss figure. Direction is conveyed three ways — sign (+/−), arrow icon and
@@ -16,7 +16,8 @@ export function PLValue({
   suffix,
 }: {
   value: Dec | null
-  format?: 'usd' | 'percent'
+  /** 'amount': table style, at most 2 decimals and no ".00" (see formatAmount). */
+  format?: 'usd' | 'amount' | 'percent'
   icon?: boolean
   className?: string
   /** Arrow size (defaults to 14px). */
@@ -25,7 +26,8 @@ export function PLValue({
 }) {
   if (value === null) return <span className={cn('text-muted-foreground', className)}>—</span>
   const Icon = value.isZero() ? Minus : value.gt(0) ? ArrowUpRight : ArrowDownRight
-  const text = format === 'usd' ? formatUsd(value, { signed: true }) : formatPercent(value)
+  const text =
+    format === 'usd' ? formatUsd(value, { signed: true }) : format === 'amount' ? formatAmount(value, { signed: true }) : formatPercent(value)
   return (
     <span className={cn('tabular inline-flex items-center gap-0.5 whitespace-nowrap', plClass(value), className)}>
       {icon && <Icon className={cn('shrink-0', iconClassName)} aria-hidden />}

@@ -61,6 +61,7 @@ export function InvestmentDetails({ lot, onClose }: { lot: LotMetrics | null; on
                 </h3>
                 <dl>
                   <Row label="Buy date">{formatDate(inv.buyDate)}</Row>
+                  <Row label="Bought on">{inv.exchange ?? 'Not set'}</Row>
                   <Row label="Buy price">{formatPrice(lot.buyPrice)}</Row>
                   <Row label="Quantity">{formatQuantity(lot.quantity)}</Row>
                   <Row label="Gross purchase">{formatUsd(lot.grossPurchaseCost)}</Row>
