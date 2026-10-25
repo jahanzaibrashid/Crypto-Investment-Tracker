@@ -40,3 +40,9 @@ export interface CoinSearchResult {
 }
 
 export type PriceLookup = (coinId: string) => PriceQuote
+
+/** One daily USD close (YYYY-MM-DD, UTC). The latest day holds the current price. */
+export interface DailyClose {
+  date: string
+  close: string
+}

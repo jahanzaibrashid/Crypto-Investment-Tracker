@@ -1,8 +1,9 @@
 // Supabase Edge Function: authenticated, allow-listed CoinGecko proxy.
 //
-// Keeps the CoinGecko API key server-side. Only two operations are exposed:
+// Keeps the CoinGecko API key server-side. Only three operations are exposed:
 //   { "endpoint": "price",  "ids": ["bitcoin", "ethereum"] }   -> /simple/price (USD)
 //   { "endpoint": "search", "query": "pepe" }                  -> /search
+//   { "endpoint": "history", "id": "ethereum", "days": 120 }   -> /coins/{id}/market_chart (daily, USD)
 // Anything else is rejected. Requests must carry a valid Supabase user JWT
 // (verify_jwt is on by default for deployed functions), and are rate limited
 // per user and cached per isolate.
@@ -26,6 +27,7 @@ const MAX_IDS = 100
 const MAX_QUERY = 64
 const PRICE_TTL_MS = 30_000
 const SEARCH_TTL_MS = 10 * 60_000
+const HISTORY_TTL_MS = 15 * 60_000
 const RATE_WINDOW_MS = 60_000
 const RATE_MAX = 30 // requests per user per minute per isolate
 
@@ -99,6 +101,15 @@ Deno.serve(async (req) => {
     url = new URL(`${BASE}/search`)
     url.searchParams.set('query', q)
     ttl = SEARCH_TTL_MS
+  } else if (body.endpoint === 'history') {
+    const id = typeof body.id === 'string' ? body.id : ''
+    const days = typeof body.days === 'number' && Number.isInteger(body.days) ? body.days : 0
+    if (!COIN_ID_RE.test(id) || days < 1 || days > 365) return json(400, { error: 'Invalid history request' }, origin)
+    url = new URL(`${BASE}/coins/${id}/market_chart`)
+    url.searchParams.set('vs_currency', 'usd')
+    url.searchParams.set('days', String(days))
+    url.searchParams.set('interval', 'daily')
+    ttl = HISTORY_TTL_MS
   } else {
     return json(400, { error: 'Unsupported endpoint' }, origin)
   }

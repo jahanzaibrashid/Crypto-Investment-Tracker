@@ -12,7 +12,7 @@
 import { env } from '@/lib/env'
 import { getSupabase } from '@/lib/supabase'
 import { D } from '@/lib/decimal'
-import type { CoinSearchResult, PriceSnapshot, ProviderPrice } from './prices.types'
+import type { CoinSearchResult, DailyClose, PriceSnapshot, ProviderPrice } from './prices.types'
 
 export const COINGECKO_BASE_URL = 'https://api.coingecko.com/api/v3'
 export const PROXY_FUNCTION_NAME = 'coingecko-proxy'
@@ -53,7 +53,10 @@ export function describeMarketDataError(error: unknown): string {
   return 'Prices could not be loaded.'
 }
 
-type Endpoint = { kind: 'price'; ids: string[] } | { kind: 'search'; query: string }
+type Endpoint = { kind: 'price'; ids: string[] } | { kind: 'search'; query: string } | { kind: 'history'; id: string; days: number }
+
+/** Longest daily history requested (CoinGecko's free plan serves up to 365 days). */
+export const MAX_HISTORY_DAYS = 365
 
 const COIN_ID_RE = /^[a-z0-9][a-z0-9._-]{0,99}$/
 
@@ -64,8 +67,13 @@ function parseRetryAfter(value: string | null): number | undefined {
 }
 
 async function directRequest(endpoint: Endpoint, signal?: AbortSignal): Promise<unknown> {
-  const url = new URL(`${COINGECKO_BASE_URL}/${endpoint.kind === 'price' ? 'simple/price' : 'search'}`)
-  if (endpoint.kind === 'price') {
+  const path = endpoint.kind === 'price' ? 'simple/price' : endpoint.kind === 'search' ? 'search' : `coins/${endpoint.id}/market_chart`
+  const url = new URL(`${COINGECKO_BASE_URL}/${path}`)
+  if (endpoint.kind === 'history') {
+    url.searchParams.set('vs_currency', 'usd')
+    url.searchParams.set('days', String(endpoint.days))
+    url.searchParams.set('interval', 'daily')
+  } else if (endpoint.kind === 'price') {
     url.searchParams.set('ids', endpoint.ids.join(','))
     url.searchParams.set('vs_currencies', 'usd')
     url.searchParams.set('include_last_updated_at', 'true')
@@ -98,7 +106,12 @@ async function directRequest(endpoint: Endpoint, signal?: AbortSignal): Promise<
 }
 
 async function proxyRequest(endpoint: Endpoint): Promise<unknown> {
-  const body = endpoint.kind === 'price' ? { endpoint: 'price', ids: endpoint.ids } : { endpoint: 'search', query: endpoint.query }
+  const body =
+    endpoint.kind === 'price'
+      ? { endpoint: 'price', ids: endpoint.ids }
+      : endpoint.kind === 'search'
+        ? { endpoint: 'search', query: endpoint.query }
+        : { endpoint: 'history', id: endpoint.id, days: endpoint.days }
   const { data, error } = await getSupabase().functions.invoke(PROXY_FUNCTION_NAME, { body })
   if (error) {
     const ctx = (error as { context?: unknown }).context
@@ -190,4 +203,30 @@ export async function searchCoins(query: string, signal?: AbortSignal): Promise<
   const q = query.trim().slice(0, 64)
   if (!q) return []
   return parseSearchResponse(await request({ kind: 'search', query: q }, signal))
+}
+
+/**
+ * Validate a /coins/{id}/market_chart payload into one close per UTC day, oldest first.
+ * With interval=daily the last point is the latest price, so "today" holds the current price.
+ */
+export function parseHistoryResponse(payload: unknown): DailyClose[] {
+  if (!isRecord(payload) || !Array.isArray(payload.prices)) {
+    throw new MarketDataError('malformed', 'History response has no prices array')
+  }
+  const byDate = new Map<string, string>()
+  for (const point of payload.prices) {
+    if (!Array.isArray(point) || point.length < 2) continue
+    const [ms, price] = point as [unknown, unknown]
+    if (typeof ms !== 'number' || !Number.isFinite(ms) || typeof price !== 'number' || !Number.isFinite(price) || price <= 0) continue
+    byDate.set(new Date(ms).toISOString().slice(0, 10), new D(price).toString())
+  }
+  return [...byDate].sort(([a], [b]) => a.localeCompare(b)).map(([date, close]) => ({ date, close }))
+}
+
+/** Daily USD closes for one coin over the last `days` days. */
+export async function fetchPriceHistory(coinId: string, days: number, signal?: AbortSignal): Promise<DailyClose[]> {
+  const id = coinId.trim().toLowerCase()
+  if (!COIN_ID_RE.test(id)) throw new MarketDataError('config', 'Invalid coin id')
+  const n = Math.max(1, Math.min(MAX_HISTORY_DAYS, Math.round(days)))
+  return parseHistoryResponse(await request({ kind: 'history', id, days: n }, signal))
 }

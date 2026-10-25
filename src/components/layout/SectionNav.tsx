@@ -1,11 +1,13 @@
 import { NavLink } from 'react-router'
-import { LayoutDashboard, List, NotebookPen, PieChart } from 'lucide-react'
+import { CandlestickChart, LayoutDashboard, List, NotebookPen, PieChart, Target } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 const PAGES = [
   { to: '/overview', label: 'Overview', icon: LayoutDashboard },
   { to: '/holdings', label: 'Holdings', icon: PieChart },
   { to: '/investments', label: 'Investments', icon: List },
+  { to: '/strategy', label: 'Strategy', icon: Target },
+  { to: '/analyzer', label: 'Analyzer', icon: CandlestickChart },
   { to: '/notes', label: 'Notes', icon: NotebookPen },
 ] as const
 

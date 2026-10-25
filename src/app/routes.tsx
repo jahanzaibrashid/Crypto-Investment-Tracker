@@ -11,6 +11,8 @@ const DashboardLayout = lazy(() => import('@/features/dashboard/DashboardLayout'
 const OverviewPage = lazy(() => import('@/features/dashboard/OverviewPage').then((m) => ({ default: m.OverviewPage })))
 const HoldingsPage = lazy(() => import('@/features/dashboard/HoldingsPage').then((m) => ({ default: m.HoldingsPage })))
 const InvestmentsPage = lazy(() => import('@/features/investments/InvestmentsPage').then((m) => ({ default: m.InvestmentsPage })))
+const StrategyPage = lazy(() => import('@/features/strategy/StrategyPage').then((m) => ({ default: m.StrategyPage })))
+const AnalyzerPage = lazy(() => import('@/features/analyzer/AnalyzerPage').then((m) => ({ default: m.AnalyzerPage })))
 const NotesPage = lazy(() => import('@/features/notes/NotesPage').then((m) => ({ default: m.NotesPage })))
 
 const page = (el: ReactNode) => <Suspense fallback={<LoadingState label="Loading…" />}>{el}</Suspense>
@@ -43,6 +45,8 @@ export function AppRoutes() {
           <Route path="/overview" element={page(<OverviewPage />)} />
           <Route path="/holdings" element={page(<HoldingsPage />)} />
           <Route path="/investments" element={page(<InvestmentsPage />)} />
+          <Route path="/strategy" element={page(<StrategyPage />)} />
+          <Route path="/analyzer" element={page(<AnalyzerPage />)} />
           <Route path="/notes" element={page(<NotesPage />)} />
         </Route>
       </Route>

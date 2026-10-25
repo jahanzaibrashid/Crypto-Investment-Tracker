@@ -41,6 +41,11 @@ const TRIGGER_MESSAGES = [
   'Too many investments in one import (maximum 2000)',
   'Too many sales for one investment (maximum 1000)',
   'The list changed in the meantime. Refresh and try again',
+  'A new cycle must start after the start date of your latest cycle',
+  "The start date must be after the previous cycle's start date",
+  "The start date must be before the next cycle's start date",
+  'The start date cannot be after the day this cycle was closed',
+  'Trading cycle not found',
 ]
 
 /**

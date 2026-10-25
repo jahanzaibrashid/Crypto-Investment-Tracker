@@ -63,9 +63,9 @@ export function BoughtCell({ lot }: { lot: LotMetrics }) {
 export function InvestedCell({ lot }: { lot: LotMetrics }) {
   return (
     <div className="flex flex-col">
-      <div className={primary}>{formatAmount(lot.grossPurchaseCost)}</div>
-      {/* Buy price per coin lives here (not under Bought) so no cell needs three lines. */}
-      <div className={secondary}>@ {formatPrice(lot.buyPrice)}</div>
+      {/* Buy price per coin leads; it lives here (not under Bought) so no cell needs three lines. */}
+      <div className={primary}>@ {formatPrice(lot.buyPrice)}</div>
+      <div className="text-[15px] leading-snug text-muted-foreground">{formatAmount(lot.grossPurchaseCost)}</div>
       {lot.buyFee.gt(0) && <div className={secondary}>+{formatUsd(lot.buyFee)} fee</div>}
     </div>
   )
@@ -75,13 +75,13 @@ export function InvestedCell({ lot }: { lot: LotMetrics }) {
  * A current value colored against what was invested in it: green with ↗ when it is worth more,
  * red with ↘ when it is worth less (arrow + tooltip, so not color alone). `pl` = value − invested.
  */
-export function ValueVsInvested({ value, pl }: { value: Dec; pl: Dec | null }) {
+export function ValueVsInvested({ value, pl, small = false }: { value: Dec; pl: Dec | null; small?: boolean }) {
   const up = pl !== null && pl.gt(0)
   const down = pl !== null && pl.lt(0)
   const Icon = up ? ArrowUpRight : down ? ArrowDownRight : null
   const title = pl === null ? undefined : up ? `${formatUsd(pl)} more than invested` : down ? `${formatUsd(pl.abs())} less than invested` : 'Same as invested'
   return (
-    <span className={cn('inline-flex items-center gap-0.5 text-[15px] font-semibold', pl === null ? 'text-foreground' : plClass(pl))} title={title}>
+    <span className={cn('inline-flex items-center gap-0.5', small ? 'text-[15px] leading-snug' : 'text-[15px] font-semibold', pl === null ? 'text-foreground' : plClass(pl))} title={title}>
       {Icon && <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />}
       {formatUsd(value)}
       {title && <span className="sr-only">, {title}</span>}
@@ -93,12 +93,13 @@ export function CurrentValueCell({ lot }: { lot: LotMetrics }) {
   if (lot.status === 'SOLD') return empty
   return (
     <div className="flex flex-col items-start">
-      {lot.currentValue ? <ValueVsInvested value={lot.currentValue} pl={lot.unrealizedPL} /> : <div className={primary}>Unavailable</div>}
-      {lot.currentPrice && (
-        <div className={cn('text-[13px]', lot.unrealizedPL === null || lot.unrealizedPL.isZero() ? 'text-muted-foreground' : plClass(lot.unrealizedPL))}>
-          @ {formatPrice(lot.currentPrice)}
-        </div>
+      {/* Current coin price leads; the lot's value sits under it. */}
+      {lot.currentPrice ? (
+        <div className={cn('text-[15px] leading-snug font-semibold', lot.unrealizedPL === null || lot.unrealizedPL.isZero() ? 'text-foreground' : plClass(lot.unrealizedPL))}>@ {formatPrice(lot.currentPrice)}</div>
+      ) : (
+        <div className={primary}>Unavailable</div>
       )}
+      {lot.currentValue && <ValueVsInvested value={lot.currentValue} pl={lot.unrealizedPL} small />}
       <PriceStatusBadge status={lot.priceStatus} size="lg" />
     </div>
   )

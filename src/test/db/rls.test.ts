@@ -466,3 +466,59 @@ describe('investment order (sort_order)', () => {
     await expect(reorder(null, [aliceLot])).rejects.toThrow(/permission denied/)
   })
 })
+
+describe('trading cycles', () => {
+  const start = (userId: string | null, date: string, length = 30) =>
+    asUser(db, userId, async (tx) => {
+      const res = await tx.query<{ id: string }>(`select public.start_trading_cycle($1, $2, 1000, 30, 0.1) as id`, [date, length])
+      return res.rows[0]!.id
+    })
+  const cycles = (userId: string) =>
+    asUser(db, userId, async (tx) =>
+      (await tx.query<{ start_date: string; closed_on: string | null; user_id: string }>(
+        `select to_char(start_date, 'YYYY-MM-DD') as start_date, to_char(closed_on, 'YYYY-MM-DD') as closed_on, user_id
+           from public.trading_cycles order by start_date`,
+      )).rows,
+    )
+
+  it('starts a cycle owned by the caller and hides it from other users', async () => {
+    await start(ALICE, '2026-10-01')
+    expect(await cycles(ALICE)).toEqual([{ start_date: '2026-10-01', closed_on: null, user_id: ALICE }])
+    expect(await cycles(BOB)).toEqual([])
+  })
+
+  it('starting a new cycle closes the running one the day before and keeps it', async () => {
+    await start(ALICE, '2026-10-11')
+    expect(await cycles(ALICE)).toEqual([
+      { start_date: '2026-10-01', closed_on: '2026-10-10', user_id: ALICE },
+      { start_date: '2026-10-11', closed_on: null, user_id: ALICE },
+    ])
+  })
+
+  it('refuses a cycle that starts on or before the latest start date', async () => {
+    await expect(start(ALICE, '2026-10-11')).rejects.toThrow(/must start after/)
+    await expect(start(ALICE, '2026-09-01')).rejects.toThrow(/must start after/)
+  })
+
+  it("other users' cycles don't block or get closed", async () => {
+    await start(BOB, '2026-10-05')
+    expect((await cycles(ALICE)).map((c) => c.closed_on)).toEqual(['2026-10-10', null])
+    expect(await cycles(BOB)).toHaveLength(1)
+  })
+
+  it('lets the owner edit settings but not the start date, and never delete', async () => {
+    await asUser(db, ALICE, (tx) => tx.query(`update public.trading_cycles set daily_target = 40, length_days = 20 where start_date = '2026-10-11'`))
+    const row = await asUser(db, ALICE, async (tx) =>
+      (await tx.query<{ daily_target: string; length_days: number }>(`select daily_target::text, length_days from public.trading_cycles where start_date = '2026-10-11'`)).rows[0],
+    )
+    expect(row).toEqual({ daily_target: '40.000000000000', length_days: 20 })
+    await expect(asUser(db, ALICE, (tx) => tx.query(`update public.trading_cycles set start_date = '2026-12-01'`))).rejects.toThrow(/permission denied/)
+    await expect(asUser(db, ALICE, (tx) => tx.query(`delete from public.trading_cycles`))).rejects.toThrow(/permission denied/)
+  })
+
+  it("can't edit another user's cycle, and needs a signed-in user", async () => {
+    const res = await asUser(db, ALICE, (tx) => tx.query(`update public.trading_cycles set daily_target = 1 where user_id = $1 returning id`, [BOB]))
+    expect(res.rows).toEqual([])
+    await expect(start(null, '2027-01-01')).rejects.toThrow(/permission denied/)
+  })
+})

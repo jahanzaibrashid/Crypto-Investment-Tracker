@@ -14,7 +14,7 @@ interface CardProps {
 }
 
 /** Equal-height summary card: label row, value, and a one-line footnote pinned to the bottom. */
-function StatCard({ label, icon, value, sub, testId }: CardProps) {
+export function StatCard({ label, icon, value, sub, testId }: CardProps) {
   return (
     <div className="surface-card flex h-full min-h-28 min-w-0 flex-col p-3 sm:p-4" data-testid={testId}>
       <div className="flex items-center justify-between gap-2 text-xs font-medium text-muted-foreground">

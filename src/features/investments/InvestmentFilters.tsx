@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { DateInput } from '@/components/ui/DateInput'
 import { cn } from '@/lib/cn'
 import { formatDate, parseDate } from '@/lib/formatters'
+import { MultiSelect } from '@/components/ui/MultiSelect'
 import { Select } from '@/components/ui/Select'
 import {
   hasActiveFilters,
@@ -16,10 +17,9 @@ import {
   type StatusFilter,
 } from './investments.filters'
 import { usedExchanges } from './exchanges'
-import type { LotMetrics } from './investments.utils'
+import type { LotMetrics, PositionKind } from './investments.utils'
 
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: 'ALL', label: 'All statuses' },
+const STATUS_OPTIONS: { value: PositionKind; label: string }[] = [
   { value: 'HOLDING', label: 'Holding' },
   { value: 'LONG_TERM', label: 'Long-term holding' },
   { value: 'SOLD_PROFIT', label: 'Sold in profit' },
@@ -56,7 +56,7 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
   const [open, setOpen] = useState(false)
   const label = (options: { value: string; label: string }[], v: string) => options.find((o) => o.value === v)?.label ?? v
   const chips = [
-    value.status !== 'ALL' && { key: 'status', text: label(STATUS_OPTIONS, value.status), clear: () => set('status', 'ALL') },
+    ...value.status.map((s) => ({ key: `status-${s}`, text: label(STATUS_OPTIONS, s), clear: () => set('status', value.status.filter((x) => x !== s)) })),
     value.soldIn !== '' && { key: 'soldIn', text: `Sold: ${label(periodOptions, value.soldIn)}`, clear: () => set('soldIn', '') },
     value.exchange !== '' && { key: 'exchange', text: label(exchangeFilterOptions, value.exchange), clear: () => set('exchange', '') },
     value.from !== '' && { key: 'from', text: `From ${formatDate(value.from)}`, clear: () => set('from', '') },
@@ -111,12 +111,13 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
           open ? 'grid' : 'hidden',
         )}
       >
-        <Select
+        <MultiSelect
           label="Status"
           value={value.status}
-          active={value.status !== 'ALL'}
-          onChange={(e) => set('status', e.target.value as StatusFilter)}
+          active={value.status.length > 0}
+          onChange={(next: StatusFilter) => set('status', next)}
           options={STATUS_OPTIONS}
+          placeholder="All statuses"
         />
         {/* Sale period: shows only investments sold in it, so the totals row becomes that period's P/L. */}
         <Select

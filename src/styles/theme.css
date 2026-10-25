@@ -57,6 +57,8 @@
   /* Position status colors (badges, row stripe):
      Holding = blue (--primary), Long-term = camel/khaki, Sold in profit = green (--success), Sold in loss = red (--destructive) */
   --long-term: #a47648;
+  --chart-liquidity-above: #0d9488; /* liquidity levels above the price (swing highs etc.): teal, distinct from the green up-candles */
+  --chart-liquidity-below: #db2777; /* liquidity levels below the price: pink, distinct from the red down-candles */
   --long-term-text: #6f4e24;
 
   /* Light row backgrounds per status, and their hover shade: the "100" step (not "50"),
@@ -118,6 +120,8 @@
   --info-text: #38bdf8;
 
   --long-term: #c9a46e;
+  --chart-liquidity-above: #2dd4bf;
+  --chart-liquidity-below: #f472b6;
   --long-term-text: #e0c393;
 
   --row-holding: #13213d;

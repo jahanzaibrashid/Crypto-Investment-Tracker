@@ -11,13 +11,14 @@ import {
 } from '@/lib/constants'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useNow } from '@/hooks/useNow'
-import { MarketDataError, fetchPrices, normalizeCoinIds, searchCoins } from './coingecko.service'
+import { MarketDataError, fetchPriceHistory, fetchPrices, normalizeCoinIds, searchCoins } from './coingecko.service'
 import type { PriceLookup, PriceQuote, PriceSnapshot } from './prices.types'
 
 export const priceKeys = {
   all: ['prices'] as const,
   forIds: (ids: string[]) => ['prices', ids.join(',')] as const,
   search: (q: string) => ['coin-search', q] as const,
+  history: (id: string, days: number) => ['price-history', id, days] as const,
 }
 
 export interface QuoteContext {
@@ -112,5 +113,19 @@ export function useCoinSearch(rawQuery: string) {
     staleTime: 60 * 60_000,
     gcTime: 2 * 60 * 60_000,
     retry: (count, error) => !(error instanceof MarketDataError && error.kind === 'rate_limited') && count < 1,
+  })
+}
+
+/** Daily history changes slowly; refreshed every 15 minutes (well inside CoinGecko's rate limit). */
+const HISTORY_REFRESH_MS = 15 * 60_000
+
+/** Daily USD closes for one coin; the latest entry is the current price. */
+export function usePriceHistory(coinId: string, days: number) {
+  return useQuery({
+    queryKey: priceKeys.history(coinId, days),
+    queryFn: ({ signal }) => fetchPriceHistory(coinId, days, signal),
+    staleTime: HISTORY_REFRESH_MS,
+    refetchInterval: HISTORY_REFRESH_MS,
+    retry: (count, error) => !(error instanceof MarketDataError && error.kind === 'rate_limited') && count < 2,
   })
 }

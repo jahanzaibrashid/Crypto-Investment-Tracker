@@ -31,7 +31,8 @@ import { PLPill } from '@/components/ui/PLPill'
 import { PLValue } from '@/components/ui/PLValue'
 import { cn } from '@/lib/cn'
 import { TABLE_PAGE_SIZES } from '@/lib/constants'
-import { formatAmount, formatDate, formatUsd } from '@/lib/formatters'
+import { ZERO, type Dec } from '@/lib/decimal'
+import { formatAmount, formatDate, formatQuantity, formatUsd } from '@/lib/formatters'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { InvestmentActions, type InvestmentAction, type RowMove } from './InvestmentActions'
 import { BoughtCell, CoinCell, CurrentValueCell, InvestedCell, ProfitLossCell, SoldAmountCell, ValueVsInvested } from './InvestmentCells'
@@ -232,9 +233,24 @@ function padX(index: number, last: number) {
 
 const PAD_Y = 'py-1 sm:py-2'
 
+/** Coins per symbol across the rows: still held (open lots' remaining) and already sold. */
+function coinTotals(lots: LotMetrics[]) {
+  const bySymbol = new Map<string, { held: Dec; sold: Dec }>()
+  for (const lot of lots) {
+    const c = bySymbol.get(lot.investment.symbol) ?? { held: ZERO, sold: ZERO }
+    bySymbol.set(lot.investment.symbol, {
+      held: lot.status === 'HOLDING' ? c.held.plus(lot.remainingQuantity) : c.held,
+      sold: c.sold.plus(lot.soldQuantity),
+    })
+  }
+  return [...bySymbol].map(([symbol, c]) => ({ symbol, ...c }))
+}
+
 /** Totals for every row currently in the table (all pages, after filters). Stays pinned to the bottom while scrolling. */
-function TotalsRow({ totals, count, columnIds }: { totals: PortfolioSummary; count: number; columnIds: string[] }) {
+function TotalsRow({ totals, lots, columnIds }: { totals: PortfolioSummary; lots: LotMetrics[]; columnIds: string[] }) {
   const t = totals
+  const count = lots.length
+  const coins = coinTotals(lots)
   const gross = t.totalPurchaseCost.minus(t.totalBuyFees)
   const value = (v: ReactNode) => <div className="text-[15px] font-semibold text-foreground">{v}</div>
   const cells: Record<string, ReactNode> = {
@@ -244,6 +260,24 @@ function TotalsRow({ totals, count, columnIds }: { totals: PortfolioSummary; cou
         <div className="text-[13px] text-muted-foreground">
           {count} row{count === 1 ? '' : 's'}
         </div>
+      </div>
+    ),
+    buyDate: (
+      <div className="flex flex-col">
+        {coins.map((c) => (
+          <div key={c.symbol} className="text-[13px] text-muted-foreground">
+            {c.held.gt(0) && (
+              <div>
+                <span className="text-[15px] font-semibold text-foreground">{formatQuantity(c.held, { maxDecimals: 3 })}</span> {c.symbol} held
+              </div>
+            )}
+            {c.sold.gt(0) && (
+              <div>
+                {formatQuantity(c.sold, { maxDecimals: 3 })} {c.symbol} sold
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     ),
     invested: (
@@ -508,7 +542,7 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false 
                   })}
                 </SortableContext>
               </tbody>
-              <TotalsRow totals={totals} count={lots.length} columnIds={columnIds} />
+              <TotalsRow totals={totals} lots={lots} columnIds={columnIds} />
             </table>
           </div>
           {pager}

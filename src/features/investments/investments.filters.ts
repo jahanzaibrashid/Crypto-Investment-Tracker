@@ -1,13 +1,14 @@
 import { todayIso } from '@/lib/formatters'
 import { lastSoldDate, positionKind, type LotMetrics, type PositionKind } from './investments.utils'
 
-export type StatusFilter = 'ALL' | PositionKind
+/** Statuses to show; empty = all. */
+export type StatusFilter = PositionKind[]
 
 /**
- * "Sold in" period: '' (all time), a rolling window ending today, or a calendar month ("2026-10").
+ * "Sold in" period: '' (all time), today, this week (Monday to today), this month, this year, or a calendar month ("2026-10").
  * When set, only fully sold investments whose (last) sale falls in the period are shown.
  */
-export type SoldPeriod = '' | 'LAST_WEEK' | 'LAST_MONTH' | 'LAST_YEAR' | `${number}-${number}`
+export type SoldPeriod = '' | 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'THIS_YEAR' | `${number}-${number}`
 
 export interface InvestmentFilterState {
   search: string
@@ -23,14 +24,11 @@ export interface InvestmentFilterState {
 /** Filter value for investments without an exchange. */
 export const NO_EXCHANGE = '__none__'
 
-export const EMPTY_FILTERS: InvestmentFilterState = { search: '', status: 'ALL', from: '', to: '', soldIn: '', exchange: '' }
+export const EMPTY_FILTERS: InvestmentFilterState = { search: '', status: [], from: '', to: '', soldIn: '', exchange: '' }
 
 export function hasActiveFilters(f: InvestmentFilterState): boolean {
-  return f.search.trim() !== '' || f.status !== 'ALL' || f.from !== '' || f.to !== '' || f.soldIn !== '' || f.exchange !== ''
+  return f.search.trim() !== '' || f.status.length > 0 || f.from !== '' || f.to !== '' || f.soldIn !== '' || f.exchange !== ''
 }
-
-/** Rolling windows, in days including today. */
-const ROLLING_DAYS = { LAST_WEEK: 7, LAST_MONTH: 30, LAST_YEAR: 365 } as const
 
 /** Local calendar date `days` before the YYYY-MM-DD `iso`. */
 function daysBefore(iso: string, days: number): string {
@@ -44,9 +42,14 @@ function daysBefore(iso: string, days: number): string {
  */
 export function soldPeriodRange(period: SoldPeriod, today = todayIso()): { from: string; to: string } | null {
   if (period === '') return null
-  if (period in ROLLING_DAYS) {
-    return { from: daysBefore(today, ROLLING_DAYS[period as keyof typeof ROLLING_DAYS] - 1), to: today }
+  if (period === 'TODAY') return { from: today, to: today }
+  if (period === 'THIS_WEEK') {
+    const [y, m, d] = today.split('-').map(Number) as [number, number, number]
+    const sinceMonday = (new Date(y, m - 1, d).getDay() + 6) % 7
+    return { from: daysBefore(today, sinceMonday), to: today }
   }
+  if (period === 'THIS_MONTH') return { from: `${today.slice(0, 7)}-01`, to: today }
+  if (period === 'THIS_YEAR') return { from: `${today.slice(0, 4)}-01-01`, to: today }
   const match = /^(\d{4})-(\d{2})$/.exec(period)
   if (!match) return null
   const [y, m] = [Number(match[1]), Number(match[2])]
@@ -56,10 +59,10 @@ export function soldPeriodRange(period: SoldPeriod, today = todayIso()): { from:
 }
 
 /**
- * Dropdown options for "Sold in": all time, the rolling windows, then every month from the
- * user's first closed sale up to the current month (newest first). The months follow the user's
- * own history: an account without fully sold investments sees only the current month, and the
- * list grows by itself as time passes. Months use the same date as the filter: the sale that
+ * Dropdown options for "Sold in": all time, today, this week, this month, this year, then every earlier
+ * month back to the user's first closed sale (newest first). The months follow the user's own
+ * history: an account without sales before this month sees no month entries, and the list
+ * grows by itself as time passes. Months use the same date as the filter: the sale that
  * closed a fully sold investment.
  */
 export function soldPeriodOptions(lots: LotMetrics[], today = todayIso()): { value: SoldPeriod; label: string }[] {
@@ -71,7 +74,8 @@ export function soldPeriodOptions(lots: LotMetrics[], today = todayIso()): { val
   }
   const [firstYear, firstMonth] = first.split('-').map(Number) as [number, number]
   const months: { value: SoldPeriod; label: string }[] = []
-  let [y, m] = [thisYear, thisMonth]
+  // The current month is "This month", so the list starts at the previous one.
+  let [y, m] = thisMonth === 1 ? [thisYear - 1, 12] : [thisYear, thisMonth - 1]
   while (y > firstYear || (y === firstYear && m >= firstMonth)) {
     const label = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     months.push({ value: `${y}-${String(m).padStart(2, '0')}` as SoldPeriod, label })
@@ -80,9 +84,10 @@ export function soldPeriodOptions(lots: LotMetrics[], today = todayIso()): { val
   }
   return [
     { value: '', label: 'All time' },
-    { value: 'LAST_WEEK', label: 'Last week' },
-    { value: 'LAST_MONTH', label: 'Last month' },
-    { value: 'LAST_YEAR', label: 'Last year' },
+    { value: 'TODAY', label: 'Today' },
+    { value: 'THIS_WEEK', label: 'This week' },
+    { value: 'THIS_MONTH', label: 'This month' },
+    { value: 'THIS_YEAR', label: 'This year' },
     ...months,
   ]
 }
@@ -95,7 +100,7 @@ export function filterLots(lots: LotMetrics[], f: InvestmentFilterState, today =
     if (q && !inv.coinName.toLowerCase().includes(q) && !inv.symbol.toLowerCase().includes(q) && !inv.coinId.includes(q)) {
       return false
     }
-    if (f.status !== 'ALL' && positionKind(lot) !== f.status) return false
+    if (f.status.length > 0 && !f.status.includes(positionKind(lot))) return false
     if (f.from && inv.buyDate < f.from) return false
     if (f.to && inv.buyDate > f.to) return false
     if (f.exchange === NO_EXCHANGE) {

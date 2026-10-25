@@ -73,9 +73,10 @@ export function formatPrice(value: Num): string {
 }
 
 /** Coin quantity: up to 8 decimals normally, more for dust amounts; trailing zeros trimmed. */
-export function formatQuantity(value: Num): string {
+/** `maxDecimals` caps the decimals (rounded down, trailing zeros trimmed), e.g. 3 for compact totals. */
+export function formatQuantity(value: Num, { maxDecimals }: { maxDecimals?: number } = {}): string {
   const d = toDec(value)
-  const decimals = d.abs().lt('0.0001') && !d.isZero() ? adaptiveDecimals(d, { min: 0, max: 18, significant: 6 }) : 8
+  const decimals = maxDecimals ?? (d.abs().lt('0.0001') && !d.isZero() ? adaptiveDecimals(d, { min: 0, max: 18, significant: 6 }) : 8)
   return group(trimZeros(d.toDecimalPlaces(decimals, D.ROUND_DOWN).toFixed(decimals), 0))
 }
 

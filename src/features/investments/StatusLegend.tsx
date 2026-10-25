@@ -10,7 +10,7 @@ const KINDS: { kind: PositionKind; label: string; bg: string; stripe: string }[]
 
 /**
  * Key for the row colors, with a count per status (across all investments).
- * Clicking an item filters the table to that status; clicking it again clears the filter.
+ * Clicking an item adds that status to the filter (several can be on); clicking it again removes it.
  */
 export function StatusLegend({
   lots,
@@ -18,8 +18,8 @@ export function StatusLegend({
   onSelect,
 }: {
   lots: LotMetrics[]
-  active: PositionKind | 'ALL'
-  onSelect: (kind: PositionKind | 'ALL') => void
+  active: PositionKind[]
+  onSelect: (kinds: PositionKind[]) => void
 }) {
   const counts: Record<PositionKind, number> = { HOLDING: 0, LONG_TERM: 0, SOLD_PROFIT: 0, SOLD_LOSS: 0 }
   for (const l of lots) counts[positionKind(l)]++
@@ -34,15 +34,15 @@ export function StatusLegend({
     >
       <span className="mr-1 hidden text-xs text-muted-foreground sm:inline">Row colors:</span>
       {KINDS.map(({ kind, label, bg, stripe }) => {
-        const isActive = active === kind
+        const isActive = active.includes(kind)
         return (
           <button
             key={kind}
             type="button"
             aria-pressed={isActive}
             aria-label={`${label}: ${counts[kind]} investment${counts[kind] === 1 ? '' : 's'}`}
-            onClick={() => onSelect(isActive ? 'ALL' : kind)}
-            title={isActive ? 'Show all statuses' : `Show only ${label}`}
+            onClick={() => onSelect(isActive ? active.filter((k) => k !== kind) : [...active, kind])}
+            title={isActive ? `Stop showing ${label}` : active.length ? `Also show ${label}` : `Show only ${label}`}
             className={cn(
               'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium whitespace-nowrap text-foreground transition-colors hover:bg-muted pointer-coarse:py-1.5',
               isActive ? 'border-primary ring-1 ring-primary/30' : 'border-border',
