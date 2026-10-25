@@ -506,14 +506,35 @@ describe('trading cycles', () => {
     expect(await cycles(BOB)).toHaveLength(1)
   })
 
-  it('lets the owner edit settings but not the start date, and never delete', async () => {
+  const cycleId = (userId: string, date: string) =>
+    asUser(db, userId, async (tx) => (await tx.query<{ id: string }>(`select id from public.trading_cycles where start_date = $1`, [date])).rows[0]!.id)
+
+  it('lets the owner edit settings', async () => {
     await asUser(db, ALICE, (tx) => tx.query(`update public.trading_cycles set daily_target = 40, length_days = 20 where start_date = '2026-10-11'`))
     const row = await asUser(db, ALICE, async (tx) =>
       (await tx.query<{ daily_target: string; length_days: number }>(`select daily_target::text, length_days from public.trading_cycles where start_date = '2026-10-11'`)).rows[0],
     )
     expect(row).toEqual({ daily_target: '40.000000000000', length_days: 20 })
-    await expect(asUser(db, ALICE, (tx) => tx.query(`update public.trading_cycles set start_date = '2026-12-01'`))).rejects.toThrow(/permission denied/)
-    await expect(asUser(db, ALICE, (tx) => tx.query(`delete from public.trading_cycles`))).rejects.toThrow(/permission denied/)
+  })
+
+  it('moves a start date back and closes the previous cycle the day before; never before the previous start', async () => {
+    const id = await cycleId(ALICE, '2026-10-11')
+    await asUser(db, ALICE, (tx) => tx.query(`select public.change_trading_cycle_start($1, '2026-10-09')`, [id]))
+    expect(await cycles(ALICE)).toEqual([
+      { start_date: '2026-10-01', closed_on: '2026-10-08', user_id: ALICE },
+      { start_date: '2026-10-09', closed_on: null, user_id: ALICE },
+    ])
+    await expect(asUser(db, ALICE, (tx) => tx.query(`select public.change_trading_cycle_start($1, '2026-09-30')`, [id]))).rejects.toThrow(/after the previous cycle/)
+  })
+
+  it("deletes the owner's cycle and reopens the one it closed; other users can't delete it", async () => {
+    const id = await cycleId(ALICE, '2026-10-09')
+    const bobDelete = await asUser(db, BOB, (tx) => tx.query(`delete from public.trading_cycles where user_id = $1 returning id`, [ALICE]))
+    expect(bobDelete.rows).toEqual([])
+    await expect(asUser(db, BOB, (tx) => tx.query(`select public.delete_trading_cycle($1)`, [id]))).rejects.toThrow(/not found/)
+
+    await asUser(db, ALICE, (tx) => tx.query(`select public.delete_trading_cycle($1)`, [id]))
+    expect(await cycles(ALICE)).toEqual([{ start_date: '2026-10-01', closed_on: null, user_id: ALICE }])
   })
 
   it("can't edit another user's cycle, and needs a signed-in user", async () => {

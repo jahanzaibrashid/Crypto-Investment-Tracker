@@ -4,6 +4,8 @@ import { analyzeLiquidity, findPivots, levelLabel, periodKinds } from '@/feature
 
 const H4 = 4 * 3_600_000
 const DAY = 86_400_000
+/** Any interval below 4h: swing points need 3 candles each side (4h+ needs 5). */
+const PIVOT3 = 3_600_000
 const T0 = Date.UTC(2026, 9, 5) // Monday 2026-10-05 00:00 UTC
 
 /** Candles from [high, low, close?] tuples; open = previous close. */
@@ -34,21 +36,21 @@ describe('liquidity levels', () => {
   it('splits open levels into above and below the live price, nearest first', () => {
     const rows: [number, number][] = [...filler(4), [130, 104], ...filler(4), [104, 80], ...filler(4), [115, 104], ...filler(4), [104, 90], ...filler(20)]
     const swings = (levels: { kind: string; price: number }[]) => levels.filter((l) => l.kind === 'swing').map((l) => l.price)
-    const a = analyzeLiquidity(build(rows), H4, 102)
+    const a = analyzeLiquidity(build(rows), PIVOT3, 102)
     expect(swings(a.above)).toEqual([115, 130])
     expect(swings(a.below)).toEqual([90, 80])
     expect(a.above.every((l) => l.side === 'buy' && l.price > 102)).toBe(true)
     expect(a.below.every((l) => l.side === 'sell' && l.price < 102)).toBe(true)
 
     // Price moves up past 115: that level is now being tested, not open liquidity above.
-    const higher = analyzeLiquidity(build(rows), H4, 116)
+    const higher = analyzeLiquidity(build(rows), PIVOT3, 116)
     expect(swings(higher.above)).toEqual([130])
     expect(swings(higher.testing)).toEqual([115])
   })
 
   it('groups highs at nearly the same price into one equal-highs level', () => {
     const rows: [number, number][] = [...filler(4), [120, 104], ...filler(4), [120.05, 104], ...filler(4), [119.98, 104], ...filler(20)]
-    const a = analyzeLiquidity(build(rows), H4, 102)
+    const a = analyzeLiquidity(build(rows), PIVOT3, 102)
     const eq = a.above.find((l) => l.kind === 'equal')!
     expect(eq.touches).toBe(3)
     expect(eq.price).toBe(120.05)
@@ -58,7 +60,7 @@ describe('liquidity levels', () => {
 
   it('a wick beyond a low that closes back inside is a bullish sweep', () => {
     const rows: [number, number, number?][] = [...filler(4), [104, 90], ...filler(20), [103, 88, 101], [104, 100], [104, 101]]
-    const a = analyzeLiquidity(build(rows), H4, 102)
+    const a = analyzeLiquidity(build(rows), PIVOT3, 102)
     expect(a.below.find((l) => l.price === 90)).toBeUndefined() // taken, no longer open
     const sweep = a.events.find((e) => e.level.price === 90)!
     expect(sweep.type).toBe('swept')
@@ -70,20 +72,20 @@ describe('liquidity levels', () => {
 
   it('a close beyond that is reclaimed within 3 candles is a failed breakout; a held close is a break', () => {
     const failed: [number, number, number?][] = [...filler(4), [120, 104], ...filler(20), [124, 110, 122], [123, 112, 118], [104, 100]]
-    const f = analyzeLiquidity(build(failed), H4, 102).events.find((e) => e.level.price === 120)!
+    const f = analyzeLiquidity(build(failed), PIVOT3, 102).events.find((e) => e.level.price === 120)!
     expect(f.type).toBe('failed-breakout')
     expect(f.bias).toBe('bearish')
     expect(f.extreme).toBe(124)
 
     const broken: [number, number, number?][] = [...filler(4), [120, 104], ...filler(20), [124, 110, 122], [126, 121, 125], [128, 123, 127], [129, 124, 128]]
-    const b = analyzeLiquidity(build(broken), H4, 128).events.find((e) => e.level.price === 120)!
+    const b = analyzeLiquidity(build(broken), PIVOT3, 128).events.find((e) => e.level.price === 120)!
     expect(b.type).toBe('broken')
     expect(b.bias).toBe('bullish')
   })
 
   it('a sweep is no longer "triggered" once price closes beyond the sweep extreme', () => {
     const rows: [number, number, number?][] = [...filler(4), [104, 90], ...filler(20), [103, 88, 101], [102, 85, 86], [90, 84, 87]]
-    const a = analyzeLiquidity(build(rows), H4, 87)
+    const a = analyzeLiquidity(build(rows), PIVOT3, 87)
     expect(a.events.find((e) => e.level.price === 90)!.invalidated).toBe(true)
     expect(a.bullish.status).not.toBe('triggered')
   })

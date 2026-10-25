@@ -54,6 +54,15 @@ async function goTo(user: UserEvent, page: 'Overview' | 'Holdings' | 'Investment
   await screen.findByRole('heading', { level: 2, name: page })
 }
 
+type StatusLabel = 'Holding' | 'Long-term holding' | 'Sold in profit' | 'Sold in loss'
+
+/** Tick or untick one status in the multi-select Status filter (opens it if needed). */
+async function toggleStatus(user: UserEvent, label: StatusLabel) {
+  const trigger = screen.getByLabelText('Status')
+  if (trigger.getAttribute('aria-expanded') !== 'true') await user.click(trigger)
+  await user.click(screen.getByRole('checkbox', { name: label }))
+}
+
 beforeEach(() => {
   resetBackend()
 })
@@ -328,11 +337,16 @@ describe('Dashboard', () => {
     await waitFor(() => expect(rows()).toHaveLength(3))
 
     await user.click(screen.getAllByRole('button', { name: 'Clear filters' })[0]!)
-    await user.selectOptions(screen.getByLabelText('Status'), 'SOLD_PROFIT')
+    await toggleStatus(user, 'Sold in profit')
     await waitFor(() => expect(rows()).toHaveLength(1))
     expect(within(rows()[0]!).getByText('Solana')).toBeInTheDocument()
+    // Several statuses at once.
+    await toggleStatus(user, 'Holding')
+    await waitFor(() => expect(rows()).toHaveLength(3))
+    expect(screen.getByLabelText('Status')).toHaveTextContent('2 selected')
 
-    await user.selectOptions(screen.getByLabelText('Status'), 'ALL')
+    await user.click(screen.getByRole('button', { name: 'Show all' }))
+    expect(screen.getByLabelText('Status')).toHaveTextContent('All statuses')
     // Numeric columns sort highest-first on the first click (BTC +$25,000, SOL +$10, ETH −$3,000).
     await user.click(screen.getByRole('button', { name: 'Sort by profit/loss' }))
     await waitFor(() => expect(within(rows()[0]!).getByText('Bitcoin')).toBeInTheDocument())
@@ -365,7 +379,7 @@ describe('Dashboard', () => {
     // Profit / Loss shows the amount and the % together: $250 − $240 = +$10 (+4.17%)
     expect(cellOf('Ethereum', 'Profit / Loss')).toHaveTextContent('+$10')
     expect(cellOf('Ethereum', 'Profit / Loss')).toHaveTextContent('+4.17%')
-    expect(cellOf('Ethereum', 'Invested')).toHaveTextContent(/^\$240@ \$2,400$/) // amount / @ buy price
+    expect(cellOf('Ethereum', 'Invested')).toHaveTextContent(/^@ \$2,400\$240$/) // @ buy price / amount
     expect(cellOf('Ethereum', 'Sold amount')).toHaveTextContent('$250.00')
     expect(cellOf('Ethereum', 'Sold amount')).toHaveTextContent('@ $2,500')
     expect(cellOf('Ethereum', 'Sold amount')).toHaveTextContent('18-Sep-26')
@@ -428,10 +442,12 @@ describe('Dashboard', () => {
     expect(byCoin('Dogecoin')).toHaveAttribute('data-row-tone', 'SOLD_LOSS')
     expect(within(byCoin('Dogecoin')).getByText('Sold · Loss')).toBeInTheDocument()
 
-    await user.selectOptions(screen.getByLabelText('Status'), 'SOLD_LOSS')
+    await toggleStatus(user, 'Sold in loss')
     await waitFor(() => expect(rows()).toHaveLength(1))
     expect(within(rows()[0]!).getByText('Dogecoin')).toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('Status'), 'LONG_TERM')
+    await toggleStatus(user, 'Long-term holding')
+    await waitFor(() => expect(rows()).toHaveLength(2))
+    await toggleStatus(user, 'Sold in loss')
     await waitFor(() => expect(rows()).toHaveLength(1))
     expect(within(rows()[0]!).getByText('Ethereum')).toBeInTheDocument()
   })
@@ -489,8 +505,14 @@ describe('Dashboard', () => {
     await user.click(longTerm)
     await waitFor(() => expect(rows()).toHaveLength(1))
     expect(longTerm).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByLabelText('Status')).toHaveValue('LONG_TERM')
-    await user.click(longTerm) // click again → all rows
+    expect(screen.getByLabelText('Status')).toHaveTextContent('Long-term holding')
+    // A second chip adds its status; the dropdown follows.
+    const profit = within(legend).getByRole('button', { name: /Sold · Profit/ })
+    await user.click(profit)
+    await waitFor(() => expect(rows()).toHaveLength(2))
+    expect(screen.getByLabelText('Status')).toHaveTextContent('2 selected')
+    await user.click(profit)
+    await user.click(longTerm) // both off again → all rows
     await waitFor(() => expect(rows()).toHaveLength(3))
   })
 
@@ -511,7 +533,7 @@ describe('Dashboard', () => {
     expect(cell('pl')).toHaveTextContent('+$20,020')
     expect(cell('pl')).toHaveTextContent('+66.51%')
 
-    await user.selectOptions(screen.getByLabelText('Status'), 'SOLD_PROFIT')
+    await toggleStatus(user, 'Sold in profit')
     await waitFor(() => expect(rows()).toHaveLength(1))
     expect(cell('coin')).toHaveTextContent('Total1 row')
     expect(cell('invested')).toHaveTextContent('$100')

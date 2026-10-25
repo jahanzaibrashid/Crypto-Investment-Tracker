@@ -72,7 +72,7 @@ export function MultiSelect<T extends string>({ label, options, value, onChange,
             id={listId}
             role="listbox"
             aria-multiselectable="true"
-            aria-label={label}
+            aria-label={`${label} options`}
             className="absolute top-full left-0 z-40 mt-1 w-full min-w-44 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-popover"
           >
             {options.map((o) => {

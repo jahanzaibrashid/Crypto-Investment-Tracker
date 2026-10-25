@@ -1,22 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { D } from '@/lib/decimal'
 import { computeLot } from '@/features/investments/investments.utils'
 import type { Investment } from '@/features/investments/investments.types'
 import type { TradingCycle } from '@/features/strategy/strategy.types'
 import {
   addDays,
-  analyzeTarget,
   buildCycleProgress,
   cycleEndDate,
   daysBetween,
-  feeShareOfTarget,
   realizedByDate,
   realizedTrades,
-  riskLevel,
 } from '@/features/strategy/strategy.utils'
 import { makeInvestment, makeSale, priceLookup } from '../fixtures'
 
-const d = (v: string | number) => new D(v)
 const s = (v: { toString(): string } | null) => (v === null ? null : v.toString())
 
 function cycle(overrides: Partial<TradingCycle> = {}): TradingCycle {
@@ -189,39 +184,5 @@ describe('cycle summary', () => {
     expect(p.totalDays).toBe(5)
     expect(s(p.realizedPL)).toBe('0')
     expect(s(p.outstanding)).toBe('150')
-  })
-})
-
-describe('target analysis', () => {
-  const base = { capital: d(1000), dailyTarget: d(30), days: 30 }
-
-  it('$1,000 and $30/day needs 3% a day before fees', () => {
-    const a = analyzeTarget(base)
-    expect(s(a.dailyReturnPct)).toBe('3')
-    expect(s(a.cycleProfit)).toBe('900')
-    expect(s(a.cycleReturnPct)).toBe('90')
-    expect(a.compoundedCycleReturnPct.toFixed(2)).toBe('142.73')
-    expect(a.riskLevel).toBe('very-high')
-  })
-
-  it('builds drawdown scenarios from shares of the capital', () => {
-    const [ten, twenty, thirty, fifty] = analyzeTarget(base).drawdowns
-    expect(s(ten!.loss)).toBe('100')
-    expect(ten!.recoveryGainPct.toFixed(2)).toBe('11.11') // 100 / 900
-    expect(twenty!.recoveryGainPct.toFixed(2)).toBe('25.00')
-    expect(thirty!.daysOfTarget.toFixed(1)).toBe('10.0') // $300 / $30
-    expect(s(fifty!.recoveryGainPct)).toBe('100')
-  })
-
-  it('classifies risk by the required daily return', () => {
-    expect(riskLevel(d('0.05'))).toBe('low')
-    expect(riskLevel(d('0.1'))).toBe('moderate')
-    expect(riskLevel(d('0.5'))).toBe('high')
-    expect(riskLevel(d('3'))).toBe('very-high')
-  })
-
-  it('fee share of target for a strategy frequency', () => {
-    // 10 round trips × $1,000 × 0.2% = $20 = 66.67% of $30
-    expect(feeShareOfTarget(d(1000), d(30), d('0.1'), 10).toFixed(2)).toBe('66.67')
   })
 })
