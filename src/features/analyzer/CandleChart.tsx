@@ -14,6 +14,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts'
 import type { Candle } from './binance.service'
+import { CandleRangeLabels } from './candleRangeLabels'
 import { PKT_OFFSET_MS } from './time'
 
 /** Chart colors come from the app's theme tokens, so the chart follows light/dark mode. */
@@ -93,11 +94,15 @@ function lineOptions(l: ChartLevel, c: Colors) {
 /** Candles visible after loading a new timeframe (the rest is a scroll away). */
 const INITIAL_VISIBLE = 150
 
-/** Arrow on a candle, e.g. a liquidity sweep. */
+/** Arrow on a candle (e.g. a liquidity sweep or a break of structure), or a small dot (a swing point). */
 export interface ChartMarker {
   time: number
   bias: 'bullish' | 'bearish'
   text: string
+  /** Default 'arrow': up under a bullish candle, down over a bearish one. */
+  shape?: 'arrow' | 'dot'
+  /** Over the candle instead of under it (default: bearish over, bullish under). */
+  above?: boolean
 }
 
 interface Props {
@@ -108,10 +113,14 @@ interface Props {
   height?: number
   /** Changing it (e.g. the timeframe) resets the zoom once the new candles arrive. */
   resetKey?: string
+  /** Write a green candle's high above it and a red candle's low below it. */
+  showHighLow?: boolean
+  /** With showHighLow: both high and low on every candle. */
+  highLowBoth?: boolean
 }
 
 /** Candlesticks with volume. Times are Pakistan time (PKT). */
-export function CandleChart({ candles, levels = [], markers = [], height = 640, resetKey }: Props) {
+export function CandleChart({ candles, levels = [], markers = [], height = 640, resetKey, showHighLow = false, highLowBoth = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<{
@@ -121,6 +130,7 @@ export function CandleChart({ candles, levels = [], markers = [], height = 640, 
   const linesRef = useRef(new Map<string, IPriceLine>())
   const zoomedForRef = useRef<string | undefined>(undefined)
   const markersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null)
+  const rangeLabelsRef = useRef<CandleRangeLabels | null>(null)
   const [themeVersion, setThemeVersion] = useState(0)
 
   // Create the chart once; follow theme changes.
@@ -173,6 +183,7 @@ export function CandleChart({ candles, levels = [], markers = [], height = 640, 
       linesRef.current = new Map()
       zoomedForRef.current = undefined
       markersRef.current = null
+      rangeLabelsRef.current = null
     }
   }, [])
 
@@ -212,6 +223,34 @@ export function CandleChart({ candles, levels = [], markers = [], height = 640, 
     }
   }, [levels, themeVersion])
 
+  // High/low labels: attached only while switched on, so the chart is untouched when off.
+  useEffect(() => {
+    const s = seriesRef.current
+    if (!s || !showHighLow) return
+    const labels = new CandleRangeLabels(themeColors().text, highLowBoth)
+    s.candles.attachPrimitive(labels)
+    rangeLabelsRef.current = labels
+    return () => {
+      // The chart may already be gone (unmount removes it first).
+      if (seriesRef.current === s) s.candles.detachPrimitive(labels)
+      rangeLabelsRef.current = null
+    }
+    // highLowBoth is applied in place below; it shouldn't re-create the labels.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHighLow])
+
+  useEffect(() => {
+    rangeLabelsRef.current?.setCandles(candles.map((k) => ({ time: toTime(k.openTime), open: k.open, high: k.high, low: k.low, close: k.close })))
+  }, [candles, showHighLow])
+
+  useEffect(() => {
+    rangeLabelsRef.current?.setBoth(highLowBoth)
+  }, [highLowBoth])
+
+  useEffect(() => {
+    rangeLabelsRef.current?.setColor(themeColors().text)
+  }, [themeVersion])
+
   useEffect(() => {
     const c = themeColors()
     markersRef.current?.setMarkers(
@@ -219,10 +258,11 @@ export function CandleChart({ candles, levels = [], markers = [], height = 640, 
         .sort((a, b) => a.time - b.time)
         .map((m) => ({
           time: toTime(m.time),
-          position: m.bias === 'bullish' ? 'belowBar' : 'aboveBar',
-          shape: m.bias === 'bullish' ? 'arrowUp' : 'arrowDown',
+          position: (m.above ?? m.bias === 'bearish') ? 'aboveBar' : 'belowBar',
+          shape: m.shape === 'dot' ? 'circle' : m.bias === 'bullish' ? 'arrowUp' : 'arrowDown',
           color: m.bias === 'bullish' ? c.up : c.down,
           text: m.text,
+          ...(m.shape === 'dot' && { size: 0.5 }),
         })),
     )
   }, [markers, themeVersion])

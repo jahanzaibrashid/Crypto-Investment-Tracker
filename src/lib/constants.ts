@@ -50,7 +50,9 @@ export const COMMON_COINS = [
  */
 export const EXCHANGE_PRESETS = [
   'Binance',
-  'MetaMask',
+  'MetaMask ETH',
+  'MetaMask BSC',
+  'MetaMask Matic',
   'MEXC',
   'OKX',
   'Coinbase',

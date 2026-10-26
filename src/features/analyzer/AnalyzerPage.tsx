@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Badge } from '@/components/ui/Badge'
@@ -19,6 +19,10 @@ import { FibonacciPanel } from './FibonacciPanel'
 import { SessionTimes } from './SessionTimes'
 import { SwingSummary } from './SwingSummary'
 import { marketSignals, type OpenLot } from './positions'
+import { analyzeStructure } from './structure'
+import { intervalPlan, PLAN } from './intervalPlan'
+import { StructurePanel, type StructureSettings } from './StructurePanel'
+import { BacktestPanel } from './BacktestPanel'
 import { usePortfolio } from '@/features/dashboard/portfolio.context'
 
 /** Spot only: the analyzer looks for long setups; bearish conditions mean "avoid / consider selling". */
@@ -30,6 +34,14 @@ const CHART_LEVELS = 4
 const FIB_AXIS_LABELS = [0, 0.5, 0.618, 0.786, 1]
 /** Chart height in px: taller on desktop, shorter on phones so it fits the screen. */
 const CHART_HEIGHT = { desktop: 640, phone: 460 }
+/** Most recent breaks of structure marked on the chart (older ones would clutter it). */
+const CHART_BREAKS = 10
+
+/** A positive number from an input, or the fallback. */
+const positive = (text: string, fallback: number) => {
+  const n = Number(text)
+  return text.trim() !== '' && n > 0 ? n : fallback
+}
 
 /**
  * What each timeframe is for in spot swing trading (positions held for days to weeks):
@@ -144,7 +156,28 @@ export function AnalyzerPage() {
     return marketSignals(m.closed, price, liq4h, analyzeFibonacci(m.closed, price, liq4h, strength).leg, strength)
   }, [openLots, price, monitorInterval, interval, closed, liquidity, fib, monitorCandles.data, now])
 
-  const [layers, setLayers] = useState({ liquidity: true, fibonacci: true })
+  // Market structure: swing points, trend, breaks, and the fixed-interval buying plan.
+  const [structureSettings, setStructureSettings] = useState<StructureSettings>({ sensitivity: 'auto', interval: String(PLAN.defaultInterval), orderUsd: String(PLAN.defaultOrderUsd) })
+  const autoStrength = pivotStrengthFor(INTERVAL_MS[interval])
+  const strength = structureSettings.sensitivity === 'auto' ? autoStrength : structureSettings.sensitivity
+  const priceInterval = positive(structureSettings.interval, PLAN.defaultInterval)
+  const orderUsd = positive(structureSettings.orderUsd, PLAN.defaultOrderUsd)
+  const structure = useMemo(() => analyzeStructure(closed, strength, INTERVAL_MS[interval]), [closed, strength, interval])
+  const plan = useMemo(
+    () =>
+      structure && price !== null
+        ? intervalPlan({ price, interval: priceInterval, orderUsd, lots: openLots, bosLevel: structure.bosLevels.high, estimatedLow: structure.metrics.estimatedLow?.price ?? null })
+        : null,
+    [structure, price, priceInterval, orderUsd, openLots],
+  )
+
+  const [layers, setLayers] = useState({ liquidity: true, fibonacci: true, highLow: false, highLowBoth: false, swings: true, structureLabels: true, bos: true })
+  const check = (key: keyof typeof layers, label: ReactNode) => (
+    <label key={key} className="inline-flex cursor-pointer items-center gap-1.5 text-foreground pointer-coarse:py-1.5">
+      <input type="checkbox" className="h-4 w-4 accent-primary-solid pointer-coarse:h-5 pointer-coarse:w-5" checked={layers[key]} onChange={(e) => setLayers((l) => ({ ...l, [key]: e.target.checked }))} />
+      {label}
+    </label>
+  )
   const chartLevels = useMemo<ChartLevel[]>(() => {
     const out: ChartLevel[] = []
     if (layers.liquidity && liquidity) {
@@ -175,14 +208,23 @@ export function AnalyzerPage() {
       out.push({ id: 'pos-exit', price: signals.exitLevel, title: 'Exit if close below', tone: 'stop', major: true, axisLabel: true })
     }
     return out
-  }, [liquidity, fib, fibSetup, layers, price, viewOnly, signals, monitorInterval, interval])
-  const chartMarkers = useMemo<ChartMarker[]>(
-    () =>
-      (layers.liquidity ? (liquidity?.events ?? []) : [])
-        .filter((e) => e.type !== 'broken' && !e.invalidated)
-        .map((e) => ({ time: e.time, bias: e.bias, text: e.type === 'swept' ? 'Sweep' : 'Failed BO' })),
-    [liquidity, layers.liquidity],
-  )
+  }, [liquidity, fib, fibSetup, layers.liquidity, layers.fibonacci, price, viewOnly, signals, monitorInterval, interval])
+  const chartMarkers = useMemo<ChartMarker[]>(() => {
+    const out: ChartMarker[] = (layers.liquidity ? (liquidity?.events ?? []) : [])
+      .filter((e) => e.type !== 'broken' && !e.invalidated)
+      .map((e) => ({ time: e.time, bias: e.bias, text: e.type === 'swept' ? 'Sweep' : 'Failed BO' }))
+    if (structure && layers.swings) {
+      for (const sw of structure.swings) {
+        const text = (layers.structureLabels && sw.label ? sw.label : sw.type === 'high' ? 'H' : 'L') + (sw.confirmed ? '' : '?')
+        const bullish = sw.label ? sw.label === 'HH' || sw.label === 'HL' : sw.type === 'low'
+        out.push({ time: sw.time, bias: bullish ? 'bullish' : 'bearish', text, shape: 'dot', above: sw.type === 'high' })
+      }
+    }
+    if (structure && layers.bos) {
+      for (const b of structure.breaks.slice(-CHART_BREAKS)) out.push({ time: b.time, bias: b.bias, text: 'BOS' })
+    }
+    return out
+  }, [liquidity, layers.liquidity, structure, layers.swings, layers.structureLabels, layers.bos])
 
   return (
     <>
@@ -261,27 +303,38 @@ export function AnalyzerPage() {
           <>
             <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
               <legend className="sr-only">Chart layers</legend>
-              {(
-                [
-                  ['liquidity', 'Liquidity levels'],
-                  ['fibonacci', 'Fibonacci'],
-                ] as const
-              ).map(([key, label]) => (
-                <label key={key} className="inline-flex cursor-pointer items-center gap-1.5 text-foreground pointer-coarse:py-1.5">
-                  <input type="checkbox" className="h-4 w-4 accent-primary-solid pointer-coarse:h-5 pointer-coarse:w-5" checked={layers[key]} onChange={(e) => setLayers((l) => ({ ...l, [key]: e.target.checked }))} />
-                  {label}
-                </label>
-              ))}
+              {check('liquidity', 'Liquidity levels')}
+              {check('fibonacci', 'Fibonacci')}
+              {check('highLow', 'High/Low')}
+              {/* Default: green candle → high, red candle → low. */}
+              {layers.highLow && check('highLowBoth', <>Both high &amp; low</>)}
+              {check('swings', 'Swing points')}
+              {/* Off: swing points show as plain H / L. */}
+              {layers.swings && check('structureLabels', 'HH/HL/LH/LL')}
+              {check('bos', 'Break of structure')}
             </fieldset>
             {/* Phones: the chart runs to the card edges for more candles and price-axis room. */}
             <div className="-mx-4 sm:mx-0">
-              <CandleChart candles={chartCandles} levels={chartLevels} markers={chartMarkers} height={chartHeight} resetKey={interval} />
+              <CandleChart candles={chartCandles} levels={chartLevels} markers={chartMarkers} height={chartHeight} resetKey={interval} showHighLow={layers.highLow} highLowBoth={layers.highLowBoth} />
             </div>
-            <p className="text-xs text-muted-foreground">Times in Pakistan time (PKT). The last candle is still forming and moves with the live price; it is not used for analysis. Liquidity: teal above the price, pink below (thicker = major). Fibonacci: orange above the price, blue below.</p>
+            <p className="text-xs text-muted-foreground">Times in Pakistan time (PKT). The last candle is still forming and moves with the live price; it is not used for analysis. Liquidity: teal above the price, pink below (thicker = major). Fibonacci: orange above the price, blue below. Swing points: HH/HL green, LH/LL red, ? = provisional (may still change). BOS = a candle closed beyond the latest swing high or low.</p>
           </>
         ) : null}
 
       </section>
+
+      {price !== null && all.length > 0 && (
+        <StructurePanel
+          analysis={structure}
+          plan={plan}
+          price={price}
+          autoStrength={autoStrength}
+          settings={structureSettings}
+          onSettings={setStructureSettings}
+          emptyText={`Not enough closed ${INTERVAL_LABEL[interval]} candles for a structure analysis (${closed.length} loaded).`}
+        />
+      )}
+      <BacktestPanel symbol={PAIR.symbol} interval={interval} timeframe={INTERVAL_LABEL[interval]} priceInterval={priceInterval} orderUsd={orderUsd} strength={strength} />
 
       {/* Each panel follows its chart checkbox. */}
       {layers.liquidity && liquidity && <LiquidityPanel analysis={liquidity} />}
@@ -290,7 +343,7 @@ export function AnalyzerPage() {
       <SessionTimes now={now} />
 
       <p className="text-xs text-muted-foreground">
-        Combined signals, backtests and paper trading are added in the next phases. {INTERVAL_LABEL[interval]} candles,{' '}
+        Combined signals and paper trading are added in the next phases. {INTERVAL_LABEL[interval]} candles,{' '}
         {closed.length} closed candles loaded.
       </p>
     </>
