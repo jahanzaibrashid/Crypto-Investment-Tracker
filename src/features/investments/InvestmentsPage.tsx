@@ -16,6 +16,7 @@ import { InvestmentDialog } from './InvestmentDialog'
 import { exchangeOptions } from './exchanges'
 import { InvestmentFilters } from './InvestmentFilters'
 import { InvestmentTable } from './InvestmentTable'
+import { LossRecovery } from './LossRecovery'
 import { NoteDialog } from './NoteDialog'
 import { SellDialog } from './SellDialog'
 import { StatusLegend } from './StatusLegend'
@@ -116,6 +117,8 @@ export function InvestmentsPage() {
             </>
           )}
         </section>
+        {/* Under the table, collapsed until opened; works on the rows the filters leave visible. */}
+        {!investmentsQuery.isLoading && lots.length > 0 && <LossRecovery lots={visibleLots} />}
       </PortfolioGate>
 
       <InvestmentDialog

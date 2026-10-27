@@ -16,7 +16,7 @@ interface PaginationProps {
 const iconBtn =
   'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40'
 
-/** "Rows per page" + range summary on the left; ‹ 1 … 4 5 6 … 12 › on the right. */
+/** ‹ 1 … 4 5 6 … 12 › centred; "Rows per page" + range summary on the right (stacked below on phones). */
 export function Pagination({ pageIndex, pageCount, pageSize, pageSizes, total, onPageChange, onPageSizeChange }: PaginationProps) {
   const count = Math.max(pageCount, 1)
   const first = total === 0 ? 0 : pageIndex * pageSize + 1
@@ -27,29 +27,11 @@ export function Pagination({ pageIndex, pageCount, pageSize, pageSizes, total, o
   return (
     <nav
       aria-label="Pagination"
-      className="flex flex-col items-center justify-between gap-3 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:px-5"
+      className="flex flex-col items-center gap-3 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:grid sm:grid-cols-[1fr_auto_1fr] sm:px-5"
     >
-      <div className="flex items-center gap-2">
-        <label htmlFor="page-size">Rows per page</label>
-        <select
-          id="page-size"
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className={cn('h-8 rounded-lg border border-input-border bg-input px-2 text-foreground', controlText)}
-        >
-          {pageSizes.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <span aria-live="polite" className="tabular">
-          {first}–{last} of {total}
-        </span>
-      </div>
-
+      {/* Equal side columns keep the page buttons centred under the table. */}
       {/* First/last jump buttons are dropped on phones: page 1 and the last page are always listed. */}
-      <div className="flex items-center gap-0.5 sm:gap-1">
+      <div className="flex items-center gap-0.5 sm:col-start-2 sm:gap-1">
         <button type="button" className={cn(iconBtn, 'hidden sm:inline-flex')} aria-label="First page" disabled={!canPrev} onClick={() => onPageChange(0)}>
           <ChevronsLeft className="h-4 w-4" aria-hidden />
         </button>
@@ -83,6 +65,25 @@ export function Pagination({ pageIndex, pageCount, pageSize, pageSizes, total, o
         <button type="button" className={cn(iconBtn, 'hidden sm:inline-flex')} aria-label="Last page" disabled={!canNext} onClick={() => onPageChange(count - 1)}>
           <ChevronsRight className="h-4 w-4" aria-hidden />
         </button>
+      </div>
+
+      <div className="flex items-center gap-2 sm:col-start-3 sm:justify-self-end">
+        <label htmlFor="page-size">Rows per page</label>
+        <select
+          id="page-size"
+          value={pageSize}
+          onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          className={cn('h-8 rounded-lg border border-input-border bg-input px-2 text-foreground', controlText)}
+        >
+          {pageSizes.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <span aria-live="polite" className="tabular">
+          {first}–{last} of {total}
+        </span>
       </div>
     </nav>
   )

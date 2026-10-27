@@ -7,14 +7,13 @@ import { cn } from '@/lib/cn'
 import { formatDate, formatPercent } from '@/lib/formatters'
 import { CycleBar, CycleStats } from './CycleOverview'
 import { TrackerTable } from './TrackerTable'
-import { CycleRecovery } from './CycleRecovery'
 import type { CycleProgress } from './strategy.utils'
 
 const STATUS = { upcoming: { label: 'Not started', tone: 'info' }, active: { label: 'Active', tone: 'positive' }, ended: { label: 'Ended', tone: 'neutral' } } as const
 
 /**
  * One trading cycle, collapsed to a single row (dates, status, result) with Edit and Delete.
- * Clicking the row opens its progress, stats, daily log and loss recovery calculator.
+ * Clicking the row opens its progress, stats and daily log.
  */
 export function CycleCard({ progress: p, onEdit, onDelete }: { progress: CycleProgress; onEdit: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false)
@@ -56,7 +55,6 @@ export function CycleCard({ progress: p, onEdit, onDelete }: { progress: CyclePr
           <CycleBar progress={p} />
           <CycleStats progress={p} />
           <TrackerTable progress={p} />
-          <CycleRecovery progress={p} />
         </div>
       )}
     </section>
