@@ -28,6 +28,7 @@
     "@tanstack/react-query": "^5.104.2",
     "@tanstack/react-table": "^9.3.1",
     "decimal.js": "^10.6.0",
+    "fflate": "^0.8.3",
     "lightweight-charts": "5.2.1",
     "lucide-react": "^1.57.0",
     "react": "^19.3.1",
@@ -35,6 +36,7 @@
     "react-hook-form": "^7.90.0",
     "react-router": "^8.4.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "xlsx-js-style": "1.2.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {

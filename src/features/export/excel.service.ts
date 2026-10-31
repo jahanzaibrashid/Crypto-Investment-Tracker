@@ -6,7 +6,9 @@
  * - Missing prices are written as an explicit "Unavailable" label — never 0.
  * - Numbers are written as numeric cells with currency/percent/date formats.
  */
-import * as XLSX from 'xlsx'
+// xlsx-js-style: the SheetJS API plus cell styles (font colours on the Spot Trade sheet).
+import * as XLSX from 'xlsx-js-style'
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import { ZERO, type Dec } from '@/lib/decimal'
 import { EXCEL_DATE_FORMAT, todayIso } from '@/lib/formatters'
 import type { LotMetrics, PortfolioSummary } from '@/features/investments/investments.utils'
@@ -34,7 +36,11 @@ export function sanitizeCellText(value: string): string {
   return /^[=+\-@\t\r＝＋－＠]/.test(value) ? `'${value}` : value
 }
 
-type Cell = XLSX.CellObject
+type Cell = XLSX.CellObject & { s?: CellStyle }
+interface CellStyle {
+  font?: { name?: string; sz?: number; bold?: boolean; color?: { rgb: string } }
+  alignment?: { horizontal?: 'center'; vertical?: 'center' }
+}
 
 const text = (v: string | null | undefined): Cell => ({ t: 's', v: sanitizeCellText(v ?? '') })
 const num = (v: Dec | null, z: string): Cell => (v === null ? { t: 's', v: UNAVAILABLE } : { t: 'n', v: v.toNumber(), z })
@@ -171,6 +177,115 @@ function salesRows(lots: LotMetrics[]): Cell[][] {
   return rows
 }
 
+/**
+ * "Spot Trade" sheet: the user's own trading-sheet layout (columns A–K and their formulas kept exactly),
+ * plus a Binance fee column. One row per sale, plus one row for the quantity still held.
+ */
+export const SPOT_TRADE_HEADERS = [
+  'Coin',
+  'Qty',
+  'Buy At',
+  '$ Invested (f)',
+  'Buy Date',
+  'Value/Sold at',
+  'ROI (f)',
+  '% (f)',
+  'Total PnL (f)',
+  'Sold Date',
+  'Note',
+  '$ Fees (f)',
+] as const
+
+/** Binance spot fee per side: charged on the buy, and again on the sale once sold. */
+const BINANCE_FEE = 0.00075
+
+const SPOT_FMT = { usd: '[$$-409]#,##0.00', num: '0.00', pct: '0.00%', date: 'd-mmm-yy' } as const
+
+/** Two decimals, but whole amounts without them (462.50, but 51 rather than 51.00). */
+const spotAmount = (v: number, fmt: string) => (v.toFixed(2).endsWith('.00') ? fmt.replace('.00', '') : fmt)
+
+/** Font colours from the user's sheet: green = sold in profit; held rows stay black. */
+const SPOT_COLOR = { profit: '00B050', loss: 'C00000', held: '000000', formulaHeader: '2F5496' } as const
+const spotFont = (rgb: string, bold = false): CellStyle => ({
+  font: { name: 'Calibri', sz: 14, bold, color: { rgb } },
+  alignment: { horizontal: 'center', vertical: 'center' },
+})
+/** Header cells of formula columns are blue in the user's sheet. */
+const SPOT_FORMULA_COLS = new Set([3, 6, 7, 8, 11])
+
+interface SpotTrade {
+  lot: LotMetrics
+  quantity: Dec
+  /** Sale price, or the current price for the held quantity (null when unavailable). */
+  price: Dec | null
+  soldDate: string | null
+  note: string | null
+}
+
+/** The Note column: the note, then the exchange (and a missing price, for held rows). */
+const spotNote = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(' · ') || null
+
+function spotTrades(lots: LotMetrics[]): SpotTrade[] {
+  const sold: SpotTrade[] = []
+  const held: SpotTrade[] = []
+  for (const lot of lots) {
+    const exchange = lot.investment.exchange ? `Exchange: ${lot.investment.exchange}` : null
+    for (const s of lot.sales) {
+      sold.push({
+        lot,
+        quantity: s.quantity,
+        price: s.quantity.isZero() ? ZERO : s.grossProceeds.dividedBy(s.quantity),
+        soldDate: s.sale.soldDate,
+        note: spotNote(s.sale.note || lot.investment.note, exchange),
+      })
+    }
+    if (lot.remainingQuantity.gt(0)) {
+      held.push({
+        lot,
+        quantity: lot.remainingQuantity,
+        price: lot.currentPrice,
+        soldDate: null,
+        note: spotNote(lot.investment.note, exchange, lot.currentPrice === null ? 'Current price unavailable' : null),
+      })
+    }
+  }
+  sold.sort((a, b) => a.soldDate!.localeCompare(b.soldDate!) || a.lot.investment.buyDate.localeCompare(b.lot.investment.buyDate))
+  held.sort((a, b) => a.lot.investment.buyDate.localeCompare(b.lot.investment.buyDate))
+  return [...sold, ...held]
+}
+
+function spotTradeRows(lots: LotMetrics[]): Cell[][] {
+  let runningPnl = 0
+  return spotTrades(lots).map((t, i) => {
+    const n = i + 2 // sheet row (row 1 is the header)
+    const qty = t.quantity.toNumber()
+    const buy = t.lot.buyPrice.toNumber()
+    const invested = qty * buy
+    const roi = t.price === null ? null : qty * t.price.toNumber() - invested
+    if (roi !== null) runningPnl += roi
+    const fees = invested * BINANCE_FEE + (t.soldDate && roi !== null ? qty * t.price!.toNumber() * BINANCE_FEE : 0)
+    // Sold in profit = green, sold at a loss = red, still held = black.
+    const style = spotFont(!t.soldDate ? SPOT_COLOR.held : roi !== null && roi >= 0 ? SPOT_COLOR.profit : SPOT_COLOR.loss)
+    // A missing current price leaves F empty; those rows guard their formulas so the totals still work.
+    const priced = roi !== null
+    const cells: Cell[] = [
+      text(t.lot.investment.symbol.toUpperCase()),
+      { t: 'n', v: qty, z: FMT.qty },
+      { t: 'n', v: buy, z: FMT.qty },
+      { t: 'n', v: invested, f: `C${n}*B${n}`, z: spotAmount(invested, SPOT_FMT.num) },
+      date(t.lot.investment.buyDate),
+      priced ? { t: 'n', v: t.price!.toNumber(), z: '0' } : blank(), // whole dollars on screen; the exact price stays in the cell
+      priced ? { t: 'n', v: roi, f: `(B${n}*F${n}) - (B${n}*C${n})`, z: spotAmount(roi, SPOT_FMT.usd) } : { t: 's', v: '', f: `IF(ISNUMBER(F${n}),(B${n}*F${n}) - (B${n}*C${n}),"")` },
+      priced ? { t: 'n', v: invested === 0 ? 0 : Math.round((roi / invested) * 10_000) / 10_000, f: `ROUND(G${n}/D${n},4)`, z: SPOT_FMT.pct } : { t: 's', v: '', f: `IF(ISNUMBER(G${n}),ROUND(G${n}/D${n},4),"")` },
+      { t: 'n', v: runningPnl, f: `SUM($G$2:G${n})`, z: spotAmount(runningPnl, SPOT_FMT.num) },
+      t.soldDate ? { t: 'n', v: excelDateSerial(t.soldDate), z: SPOT_FMT.date } : blank(),
+      text(t.note),
+      { t: 'n', v: fees, f: `D${n}*0.075% + IF(ISNUMBER(J${n}),B${n}*F${n}*0.075%,0)`, z: spotAmount(fees, SPOT_FMT.num) },
+    ]
+    return cells.map((c) => ({ ...c, s: style }))
+  })
+}
+
 function sheetFromRows(headers: readonly string[], rows: Cell[][], widths: number[]): XLSX.WorkSheet {
   const ws: XLSX.WorkSheet = {}
   const all: Cell[][] = [headers.map((h) => ({ t: 's', v: h }) as Cell), ...rows]
@@ -198,6 +313,13 @@ export interface ExportInput {
 export function buildWorkbook(input: ExportInput): XLSX.WorkBook {
   const { lots, summary } = input
   const wb = XLSX.utils.book_new()
+
+  const spotWidths = [9, 13, 17, 20, 19, 25, 14, 14, 17, 20, 40, 14]
+  const spot = sheetFromRows(SPOT_TRADE_HEADERS, spotTradeRows(lots), spotWidths)
+  SPOT_TRADE_HEADERS.forEach((_, c) => {
+    ;(spot[XLSX.utils.encode_cell({ r: 0, c })] as Cell).s = spotFont(SPOT_FORMULA_COLS.has(c) ? SPOT_COLOR.formulaHeader : SPOT_COLOR.held, true)
+  })
+  XLSX.utils.book_append_sheet(wb, spot, 'Spot Trade')
 
   const invWidths = [18, 8, 18, 12, 18, 18, 18, 14, 18, 16, 18, 18, 12, 18, 20, 18, 18, 10, 24, 14, 18, 20, 14, 40, 10, 38]
   XLSX.utils.book_append_sheet(wb, sheetFromRows(INVESTMENT_HEADERS, lots.map(investmentRow), invWidths), 'Investments')
@@ -252,10 +374,32 @@ export function exportFileName(now = new Date()): string {
   return `crypto-portfolio-${todayIso(now)}.xlsx`
 }
 
+/**
+ * Freeze the header row of every sheet. SheetJS can't write frozen panes, so the sheet XML of the
+ * finished file is patched: the empty <sheetView/> gets a frozen pane below row 1.
+ */
+export function freezeHeaderRows(xlsx: Uint8Array): Uint8Array {
+  const files = unzipSync(xlsx)
+  for (const path of Object.keys(files)) {
+    if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(path)) continue
+    const xml = strFromU8(files[path]!)
+    files[path] = strToU8(
+      xml.replace(/<sheetView([^>]*)\/>/, '<sheetView$1><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView>'),
+    )
+  }
+  return zipSync(files)
+}
+
 /** Build and download the workbook. Returns the file name. */
 export function exportToExcel(input: ExportInput): string {
   const wb = buildWorkbook(input)
   const name = exportFileName(new Date(input.exportedAt))
-  XLSX.writeFile(wb, name, { compression: true })
+  const data = freezeHeaderRows(new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true }) as ArrayBuffer))
+  const url = URL.createObjectURL(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 0)
   return name
 }
