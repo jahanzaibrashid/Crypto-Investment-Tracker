@@ -16,13 +16,9 @@ import { analyzeLiquidity, levelLabel, pivotStrengthFor } from './liquidity'
 import { LiquidityPanel } from './LiquidityPanel'
 import { analyzeFibonacci, fibLabel } from './fibonacci'
 import { FibonacciPanel } from './FibonacciPanel'
-import { SessionTimes } from './SessionTimes'
 import { SwingSummary } from './SwingSummary'
 import { marketSignals, type OpenLot } from './positions'
 import { analyzeStructure } from './structure'
-import { intervalPlan, PLAN } from './intervalPlan'
-import { StructurePanel, type StructureSettings } from './StructurePanel'
-import { BacktestPanel } from './BacktestPanel'
 import { usePortfolio } from '@/features/dashboard/portfolio.context'
 
 /** Spot only: the analyzer looks for long setups; bearish conditions mean "avoid / consider selling". */
@@ -36,12 +32,6 @@ const FIB_AXIS_LABELS = [0, 0.5, 0.618, 0.786, 1]
 const CHART_HEIGHT = { desktop: 640, phone: 460 }
 /** Most recent breaks of structure marked on the chart (older ones would clutter it). */
 const CHART_BREAKS = 10
-
-/** A positive number from an input, or the fallback. */
-const positive = (text: string, fallback: number) => {
-  const n = Number(text)
-  return text.trim() !== '' && n > 0 ? n : fallback
-}
 
 /**
  * What each timeframe is for in spot swing trading (positions held for days to weeks):
@@ -156,22 +146,10 @@ export function AnalyzerPage() {
     return marketSignals(m.closed, price, liq4h, analyzeFibonacci(m.closed, price, liq4h, strength).leg, strength)
   }, [openLots, price, monitorInterval, interval, closed, liquidity, fib, monitorCandles.data, now])
 
-  // Market structure: swing points, trend, breaks, and the fixed-interval buying plan.
-  const [structureSettings, setStructureSettings] = useState<StructureSettings>({ sensitivity: 'auto', interval: String(PLAN.defaultInterval), orderUsd: String(PLAN.defaultOrderUsd) })
-  const autoStrength = pivotStrengthFor(INTERVAL_MS[interval])
-  const strength = structureSettings.sensitivity === 'auto' ? autoStrength : structureSettings.sensitivity
-  const priceInterval = positive(structureSettings.interval, PLAN.defaultInterval)
-  const orderUsd = positive(structureSettings.orderUsd, PLAN.defaultOrderUsd)
-  const structure = useMemo(() => analyzeStructure(closed, strength, INTERVAL_MS[interval]), [closed, strength, interval])
-  const plan = useMemo(
-    () =>
-      structure && price !== null
-        ? intervalPlan({ price, interval: priceInterval, orderUsd, lots: openLots, bosLevel: structure.bosLevels.high, estimatedLow: structure.metrics.estimatedLow?.price ?? null })
-        : null,
-    [structure, price, priceInterval, orderUsd, openLots],
-  )
+  // Market structure: swing points and breaks, drawn on the chart.
+  const structure = useMemo(() => analyzeStructure(closed, pivotStrengthFor(INTERVAL_MS[interval]), INTERVAL_MS[interval]), [closed, interval])
 
-  const [layers, setLayers] = useState({ liquidity: true, fibonacci: true, highLow: false, highLowBoth: false, swings: true, structureLabels: true, bos: true })
+  const [layers, setLayers] = useState({ liquidity: false, fibonacci: false, highLow: false, highLowBoth: false, swings: false, structureLabels: false, bos: false })
   const check = (key: keyof typeof layers, label: ReactNode) => (
     <label key={key} className="inline-flex cursor-pointer items-center gap-1.5 text-foreground pointer-coarse:py-1.5">
       <input type="checkbox" className="h-4 w-4 accent-primary-solid pointer-coarse:h-5 pointer-coarse:w-5" checked={layers[key]} onChange={(e) => setLayers((l) => ({ ...l, [key]: e.target.checked }))} />
@@ -323,29 +301,9 @@ export function AnalyzerPage() {
 
       </section>
 
-      {price !== null && all.length > 0 && (
-        <StructurePanel
-          analysis={structure}
-          plan={plan}
-          price={price}
-          autoStrength={autoStrength}
-          settings={structureSettings}
-          onSettings={setStructureSettings}
-          emptyText={`Not enough closed ${INTERVAL_LABEL[interval]} candles for a structure analysis (${closed.length} loaded).`}
-        />
-      )}
-      <BacktestPanel symbol={PAIR.symbol} interval={interval} timeframe={INTERVAL_LABEL[interval]} priceInterval={priceInterval} orderUsd={orderUsd} strength={strength} />
-
       {/* Each panel follows its chart checkbox. */}
       {layers.liquidity && liquidity && <LiquidityPanel analysis={liquidity} />}
       {layers.fibonacci && fib && fibSetup && price !== null && <FibonacciPanel analysis={{ ...fib, setup: fibSetup }} price={price} pair={PAIR.label} timeframe={INTERVAL_LABEL[interval]} />}
-
-      <SessionTimes now={now} />
-
-      <p className="text-xs text-muted-foreground">
-        Combined signals and paper trading are added in the next phases. {INTERVAL_LABEL[interval]} candles,{' '}
-        {closed.length} closed candles loaded.
-      </p>
     </>
   )
 }
