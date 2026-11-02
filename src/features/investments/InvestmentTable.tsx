@@ -17,6 +17,8 @@ import {
   createColumnHelper,
   createPaginatedRowModel,
   createSortedRowModel,
+  columnOrderingFeature,
+  columnVisibilityFeature,
   rowPaginationFeature,
   rowSortingFeature,
   sortFn_alphanumeric,
@@ -37,6 +39,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { InvestmentActions, type InvestmentAction, type RowMove } from './InvestmentActions'
 import { BoughtCell, CoinCell, CurrentValueCell, InvestedCell, ProfitLossCell, SoldAmountCell, ValueVsInvested } from './InvestmentCells'
 import { PositionStatusBadge } from './PositionStatusBadge'
+import { tableColumnOrder, tableColumnVisibility, type ColumnPrefs } from './investments.columns'
 import { activeTarget, displayPL, permanentOrder, positionKind, saleSummary, summarizePortfolio, totalsWithTargets, type LotMetrics, type PortfolioSummary } from './investments.utils'
 
 const features = tableFeatures({
@@ -45,6 +48,8 @@ const features = tableFeatures({
   sortFns: { alphanumeric: sortFn_alphanumeric },
   rowPaginationFeature,
   paginatedRowModel: createPaginatedRowModel(),
+  columnVisibilityFeature,
+  columnOrderingFeature,
 })
 
 const helper = createColumnHelper<typeof features, LotMetrics>()
@@ -346,9 +351,14 @@ interface InvestmentTableProps {
   onReorder: (activeId: string, overId: string) => void
   /** A new order is being saved; dragging waits for it. */
   reordering?: boolean
+  /** Shown columns and their order (saved in this browser). */
+  columnPrefs: ColumnPrefs
 }
 
-export function InvestmentTable({ lots, onAction, onReorder, reordering = false }: InvestmentTableProps) {
+export function InvestmentTable({ lots, onAction, onReorder, reordering = false, columnPrefs }: InvestmentTableProps) {
+  // Shown columns and their order (the "Columns" menu).
+  const columnOrder = useMemo(() => tableColumnOrder(columnPrefs), [columnPrefs])
+  const columnVisibility = useMemo(() => tableColumnVisibility(columnPrefs), [columnPrefs])
   // No column sort = the permanent order (saved order for open lots, sale date for sold ones).
   // Column sorts are temporary: a third click on the header, or "Back to saved order", clears them.
   const [sorting, setSorting] = useState<SortingState>([])
@@ -399,7 +409,7 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false 
     columns,
     data: ordered,
     getRowId: (l) => l.investment.id,
-    state: { sorting, pagination },
+    state: { sorting, pagination, columnOrder, columnVisibility },
     onSortingChange: setSorting,
     onPaginationChange: setPagination,
     // `lots` gets a new identity on every price refresh, edit and sale; auto-reset would
@@ -423,7 +433,9 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false 
     />
   )
 
-  const columnIds = table.getAllLeafColumns().map((c) => c.id)
+  // A sort on a column that was just hidden would be invisible: drop it.
+  if (sorting[0] && columnVisibility[sorting[0].id] === false) setSorting([])
+  const columnIds = table.getVisibleLeafColumns().map((c) => c.id)
   const last = columnIds.length - 1
   const pageRows = table.getRowModel().rows
   // Only open lots are sortable; they always come before sold ones in the saved order.
@@ -530,7 +542,7 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false 
                       className: 'group cursor-pointer align-middle transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2',
                       'data-testid': 'investment-row',
                     }
-                    const cells = row.getAllCells().map((cell, i) => (
+                    const cells = row.getVisibleCells().map((cell, i) => (
                       <td
                         key={cell.id}
                         className={cn(

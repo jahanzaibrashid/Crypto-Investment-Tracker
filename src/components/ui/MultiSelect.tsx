@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { FieldShell } from './Input'
@@ -7,7 +7,8 @@ import type { SelectOption } from './Select'
 
 export interface MultiSelectProps<T extends string> {
   label: string
-  options: (SelectOption & { value: T })[]
+  /** `swatch`: small mark before the label (e.g. a row color); `count`: number shown on the right. */
+  options: (SelectOption & { value: T; swatch?: ReactNode; count?: number })[]
   /** Selected values; empty = nothing picked (shown as `placeholder`). */
   value: T[]
   onChange: (next: T[]) => void
@@ -38,7 +39,7 @@ export function MultiSelect<T extends string>({ label, options, value, onChange,
 
   const toggle = (v: T) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v])
   const selected = options.filter((o) => value.includes(o.value))
-  const text = selected.length === 0 ? placeholder : selected.length === 1 ? selected[0]!.label : `${selected.length} selected`
+  const text = selected.length === 0 ? placeholder : selected.map((o) => o.label).join(', ')
 
   return (
     <FieldShell id={id} label={label}>
@@ -64,7 +65,22 @@ export function MultiSelect<T extends string>({ label, options, value, onChange,
           onClick={() => setOpen((o) => !o)}
           className={cn(controlClass, 'flex h-9 items-center justify-between gap-2 pr-2 text-left', controlBorder(undefined, active))}
         >
-          <span className="truncate">{text}</span>
+          {/* Every selected option is named on the button (with its swatch); a long list is cut off with "…" and shown in full on hover. */}
+          <span className="flex min-w-0 items-center gap-1.5 overflow-hidden" title={selected.length > 1 ? text : undefined}>
+            {selected.length === 0 ? (
+              <span className="truncate">{placeholder}</span>
+            ) : (
+              selected.map((o, i) => (
+                <span key={o.value} className={cn('flex shrink-0 items-center gap-1 whitespace-nowrap', i === selected.length - 1 && 'min-w-0 shrink truncate')}>
+                  {o.swatch}
+                  <span className={cn(i === selected.length - 1 && 'truncate')}>
+                    {o.label}
+                    {i < selected.length - 1 && ','}
+                  </span>
+                </span>
+              ))
+            )}
+          </span>
           <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-180')} aria-hidden />
         </button>
         {open && (
@@ -73,7 +89,7 @@ export function MultiSelect<T extends string>({ label, options, value, onChange,
             role="listbox"
             aria-multiselectable="true"
             aria-label={`${label} options`}
-            className="absolute top-full left-0 z-40 mt-1 w-full min-w-44 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-popover"
+            className="absolute top-full left-0 z-40 mt-1 w-full min-w-56 rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-popover"
           >
             {options.map((o) => {
               const checked = value.includes(o.value)
@@ -90,7 +106,9 @@ export function MultiSelect<T extends string>({ label, options, value, onChange,
                     >
                       {checked && <Check className="h-3 w-3" strokeWidth={3} />}
                     </span>
-                    {o.label}
+                    {o.swatch}
+                    <span className="flex-1">{o.label}</span>
+                    {o.count !== undefined && <span className="tabular text-xs text-muted-foreground">{o.count}</span>}
                   </label>
                 </li>
               )

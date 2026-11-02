@@ -1,4 +1,4 @@
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { DateInput } from '@/components/ui/DateInput'
@@ -17,14 +17,19 @@ import {
   type StatusFilter,
 } from './investments.filters'
 import { usedExchanges } from './exchanges'
-import type { LotMetrics, PositionKind } from './investments.utils'
+import { positionKind, type LotMetrics, type PositionKind } from './investments.utils'
 
-const STATUS_OPTIONS: { value: PositionKind; label: string }[] = [
-  { value: 'HOLDING', label: 'Holding' },
-  { value: 'LONG_TERM', label: 'Long-term holding' },
-  { value: 'SOLD_PROFIT', label: 'Sold in profit' },
-  { value: 'SOLD_LOSS', label: 'Sold in loss' },
+/** Each status with its row color (background + left stripe), shown in the Status dropdown as the key for the row colors. */
+const STATUS_OPTIONS: { value: PositionKind; label: string; bg: string; stripe: string }[] = [
+  { value: 'HOLDING', label: 'Holding', bg: 'var(--row-holding)', stripe: 'var(--primary)' },
+  { value: 'LONG_TERM', label: 'Long-term', bg: 'var(--row-long-term)', stripe: 'var(--long-term)' },
+  { value: 'SOLD_PROFIT', label: 'Sold in profit', bg: 'var(--row-profit)', stripe: 'var(--success)' },
+  { value: 'SOLD_LOSS', label: 'Sold in loss', bg: 'var(--row-loss)', stripe: 'var(--destructive)' },
 ]
+
+const swatch = (bg: string, stripe: string) => (
+  <span aria-hidden className="h-3 w-4 shrink-0 rounded-sm" style={{ backgroundColor: bg, boxShadow: `inset 3px 0 0 ${stripe}`, outline: '1px solid var(--border)' }} />
+)
 
 interface InvestmentFiltersProps {
   value: InvestmentFilterState
@@ -33,9 +38,11 @@ interface InvestmentFiltersProps {
   totalCount: number
   /** All investments (not just the filtered ones): the "Sold in" months start at the earliest sale. */
   lots: LotMetrics[]
+  /** Shown at the end of the filter row (the "Columns" menu). */
+  trailing?: ReactNode
 }
 
-export function InvestmentFilters({ value, onChange, resultCount, totalCount, lots }: InvestmentFiltersProps) {
+export function InvestmentFilters({ value, onChange, resultCount, totalCount, lots, trailing }: InvestmentFiltersProps) {
   const set = <K extends keyof InvestmentFilterState>(key: K, v: InvestmentFilterState[K]) => onChange({ ...value, [key]: v })
   const active = hasActiveFilters(value)
   const periodOptions = useMemo(() => soldPeriodOptions(lots), [lots])
@@ -50,6 +57,12 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
     ]
   }, [lots])
   const soldRange = soldPeriodRange(value.soldIn)
+  // Status choices with their row color and how many investments have each status (across all investments).
+  const statusOptions = useMemo(() => {
+    const counts: Record<PositionKind, number> = { HOLDING: 0, LONG_TERM: 0, SOLD_PROFIT: 0, SOLD_LOSS: 0 }
+    for (const l of lots) counts[positionKind(l)]++
+    return STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label, swatch: swatch(o.bg, o.stripe), count: counts[o.value] }))
+  }, [lots])
 
   // Phones: the fields are collapsed behind a "Filters" button; applied filters show as removable chips.
   const panelId = useId()
@@ -107,7 +120,7 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
       <div
         id={panelId}
         className={cn(
-          'grid-cols-2 gap-3 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end',
+          'grid-cols-2 gap-3 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] md:items-end',
           open ? 'grid' : 'hidden',
         )}
       >
@@ -116,7 +129,7 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
           value={value.status}
           active={value.status.length > 0}
           onChange={(next: StatusFilter) => set('status', next)}
-          options={STATUS_OPTIONS}
+          options={statusOptions}
           placeholder="All statuses"
         />
         {/* Sale period: shows only investments sold in it, so the totals row becomes that period's P/L. */}
@@ -150,6 +163,7 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
         >
           Clear filters
         </Button>
+        {trailing && <div className="col-span-2 flex justify-end md:col-span-1">{trailing}</div>}
       </div>
       <p className="text-xs text-muted-foreground" aria-live="polite">
         {active ? `Showing ${resultCount} of ${totalCount} investments` : `${totalCount} investment${totalCount === 1 ? '' : 's'}`}

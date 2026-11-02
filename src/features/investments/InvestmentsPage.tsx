@@ -21,7 +21,8 @@ import { NoteDialog } from './NoteDialog'
 import { SellDialog } from './SellDialog'
 import { TargetPriceDialog } from './TargetPriceDialog'
 import { TargetsSwitch } from './TargetsSwitch'
-import { StatusLegend } from './StatusLegend'
+import { ColumnsMenu } from './ColumnsMenu'
+import { useColumnPrefs } from './investments.columns'
 import type { InvestmentAction } from './InvestmentActions'
 import { DEFAULT_FILTERS, EMPTY_FILTERS, filterLots, type InvestmentFilterState } from './investments.filters'
 import { useInvestmentMutations } from './investments.hooks'
@@ -37,6 +38,7 @@ export function InvestmentsPage() {
   const navigate = useNavigate()
 
   const [filters, setFilters] = useState<InvestmentFilterState>(DEFAULT_FILTERS)
+  const columns = useColumnPrefs()
   const visibleLots = useMemo(() => filterLots(lots, filters), [lots, filters])
   const exchangeChoices = useMemo(() => exchangeOptions(lots.map((l) => l.investment)), [lots])
 
@@ -101,8 +103,14 @@ export function InvestmentsPage() {
           ) : (
             <>
               <div className="flex flex-col gap-3 px-4 py-4 sm:px-5">
-                <InvestmentFilters value={filters} onChange={setFilters} resultCount={visibleLots.length} totalCount={lots.length} lots={lots} />
-                <StatusLegend lots={lots} active={filters.status} onSelect={(status) => setFilters({ ...filters, status })} />
+                <InvestmentFilters
+                  value={filters}
+                  onChange={setFilters}
+                  resultCount={visibleLots.length}
+                  totalCount={lots.length}
+                  lots={lots}
+                  trailing={<ColumnsMenu prefs={columns.prefs} onChange={columns.setPrefs} onReset={columns.reset} />}
+                />
                 <TargetsSwitch lots={visibleLots} />
               </div>
               {visibleLots.length === 0 ? (
@@ -115,7 +123,7 @@ export function InvestmentsPage() {
                   }
                 />
               ) : (
-                <InvestmentTable lots={visibleLots} onAction={onAction} onReorder={onReorder} reordering={reorder.isPending} />
+                <InvestmentTable lots={visibleLots} onAction={onAction} onReorder={onReorder} reordering={reorder.isPending} columnPrefs={columns.prefs} />
               )}
             </>
           )}
