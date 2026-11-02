@@ -37,7 +37,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { InvestmentActions, type InvestmentAction, type RowMove } from './InvestmentActions'
 import { BoughtCell, CoinCell, CurrentValueCell, InvestedCell, ProfitLossCell, SoldAmountCell, ValueVsInvested } from './InvestmentCells'
 import { PositionStatusBadge } from './PositionStatusBadge'
-import { displayPL, permanentOrder, positionKind, saleSummary, summarizePortfolio, type LotMetrics, type PortfolioSummary } from './investments.utils'
+import { activeTarget, displayPL, permanentOrder, positionKind, saleSummary, summarizePortfolio, totalsWithTargets, type LotMetrics, type PortfolioSummary } from './investments.utils'
 
 const features = tableFeatures({
   rowSortingFeature,
@@ -158,13 +158,14 @@ function buildColumns(onAction: (a: InvestmentAction, lot: LotMetrics) => void) 
       sortUndefined: 'last',
       cell: ({ row }) => <CurrentValueCell lot={row.original} />,
     }),
-    helper.accessor((l) => n(saleSummary(l)?.netProceeds ?? null), {
+    // Not sold yet: sorts by the value at the target, when one is on.
+    helper.accessor((l) => n(saleSummary(l)?.netProceeds ?? activeTarget(l)?.value ?? null), {
       id: 'soldAmount',
       header: 'Sold amount',
       sortUndefined: 'last',
-      cell: ({ row }) => <SoldAmountCell lot={row.original} />,
+      cell: ({ row }) => <SoldAmountCell lot={row.original} onTarget={() => onAction('target', row.original)} />,
     }),
-    helper.accessor((l) => n(displayPL(l)), {
+    helper.accessor((l) => n(activeTarget(l)?.pl ?? displayPL(l)), {
       id: 'pl',
       header: 'Profit / Loss',
       sortUndefined: 'last',
@@ -252,6 +253,14 @@ function TotalsRow({ totals, lots, columnIds }: { totals: PortfolioSummary; lots
   const count = lots.length
   const coins = coinTotals(lots)
   const gross = t.totalPurchaseCost.minus(t.totalBuyFees)
+  // Rows switched to their target count at the target here too, so the totals match the rows.
+  const wt = totalsWithTargets(t, lots)
+  const planned = wt.targetCount > 0
+  const plannedNote = planned && (
+    <div className="text-[12px] text-primary-text">
+      incl. {wt.targetCount} target{wt.targetCount === 1 ? '' : 's'}
+    </div>
+  )
   const value = (v: ReactNode) => <div className="text-[15px] font-semibold text-foreground">{v}</div>
   const cells: Record<string, ReactNode> = {
     coin: (
@@ -292,11 +301,17 @@ function TotalsRow({ totals, lots, columnIds }: { totals: PortfolioSummary; lots
         {!t.isComplete && <div className="text-[13px] text-warning-text">excl. {t.missingPriceCoinIds.length} unpriced</div>}
       </div>
     ),
-    soldAmount: value(t.soldLotCount + t.partiallySoldLotCount > 0 ? formatUsd(t.netSaleProceeds) : '—'),
+    soldAmount: (
+      <div className="flex flex-col">
+        {value(t.soldLotCount + t.partiallySoldLotCount > 0 ? formatUsd(t.netSaleProceeds) : '—')}
+        {planned && <div className="text-[13px] text-primary-text">+ {formatUsd(wt.targetValue)} at targets</div>}
+      </div>
+    ),
     pl: (
       <div className="flex flex-col items-start gap-0.5">
-        <PLPill value={t.totalPL} />
-        <PLValue value={t.overallROI} format="percent" icon={false} className="pl-0.5 text-[13px]" />
+        <PLPill value={wt.totalPL} planned={planned} />
+        <PLValue value={wt.overallROI} format="percent" icon={false} className="pl-0.5 text-[13px]" />
+        {plannedNote}
       </div>
     ),
   }

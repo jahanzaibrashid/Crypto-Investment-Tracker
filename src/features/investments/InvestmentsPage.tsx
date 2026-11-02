@@ -19,13 +19,15 @@ import { InvestmentTable } from './InvestmentTable'
 import { LossRecovery } from './LossRecovery'
 import { NoteDialog } from './NoteDialog'
 import { SellDialog } from './SellDialog'
+import { TargetPriceDialog } from './TargetPriceDialog'
+import { TargetsSwitch } from './TargetsSwitch'
 import { StatusLegend } from './StatusLegend'
 import type { InvestmentAction } from './InvestmentActions'
-import { EMPTY_FILTERS, filterLots, type InvestmentFilterState } from './investments.filters'
+import { DEFAULT_FILTERS, EMPTY_FILTERS, filterLots, type InvestmentFilterState } from './investments.filters'
 import { useInvestmentMutations } from './investments.hooks'
 import { reorderedOpenIds, type LotMetrics } from './investments.utils'
 
-type DialogState = { kind: 'none' } | { kind: 'add' } | { kind: 'edit' | 'view' | 'sell' | 'note' | 'delete'; id: string }
+type DialogState = { kind: 'none' } | { kind: 'add' } | { kind: 'edit' | 'view' | 'sell' | 'note' | 'target' | 'delete'; id: string }
 
 export function InvestmentsPage() {
   const { investmentsQuery, lots } = usePortfolio()
@@ -34,7 +36,7 @@ export function InvestmentsPage() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [filters, setFilters] = useState<InvestmentFilterState>(EMPTY_FILTERS)
+  const [filters, setFilters] = useState<InvestmentFilterState>(DEFAULT_FILTERS)
   const visibleLots = useMemo(() => filterLots(lots, filters), [lots, filters])
   const exchangeChoices = useMemo(() => exchangeOptions(lots.map((l) => l.investment)), [lots])
 
@@ -101,6 +103,7 @@ export function InvestmentsPage() {
               <div className="flex flex-col gap-3 px-4 py-4 sm:px-5">
                 <InvestmentFilters value={filters} onChange={setFilters} resultCount={visibleLots.length} totalCount={lots.length} lots={lots} />
                 <StatusLegend lots={lots} active={filters.status} onSelect={(status) => setFilters({ ...filters, status })} />
+                <TargetsSwitch lots={visibleLots} />
               </div>
               {visibleLots.length === 0 ? (
                 <EmptyState
@@ -130,6 +133,7 @@ export function InvestmentsPage() {
       <SellDialog lot={lotFor('sell')} onClose={closeDialog} />
       <InvestmentDetails lot={lotFor('view')} onClose={closeDialog} />
       <NoteDialog investment={lotFor('note')?.investment ?? null} onClose={closeDialog} />
+      <TargetPriceDialog lot={lotFor('target')} onClose={closeDialog} />
       <ConfirmDialog
         open={deleteLot !== null}
         title="Delete this investment?"

@@ -33,6 +33,8 @@ export function makeInvestment(overrides: Partial<Investment> = {}): Investment 
     status: 'HOLDING',
     longTerm: false,
     exchange: null,
+    targetPrice: null,
+    targetEnabled: true,
     sortOrder: seq,
     note: null,
     createdAt: '2024-01-01T00:00:00Z',

@@ -12,7 +12,7 @@ import type { ImportLotInput, Investment, InvestmentInput, Sale, SaleInput } fro
 const PAGE = 1000 // PostgREST default max-rows
 
 const INVESTMENT_COLUMNS =
-  'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, long_term, exchange, sort_order, note, created_at, updated_at'
+  'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, long_term, exchange, target_price::text, target_enabled, sort_order, note, created_at, updated_at'
 const SALE_COLUMNS = 'id, investment_id, sold_date, quantity::text, price::text, fee::text, note, created_at'
 
 interface InvestmentRow {
@@ -27,6 +27,8 @@ interface InvestmentRow {
   status: 'HOLDING' | 'SOLD'
   long_term: boolean
   exchange: string | null
+  target_price: string | null
+  target_enabled: boolean
   sort_order: number | string
   note: string | null
   created_at: string
@@ -70,6 +72,8 @@ export function mapInvestment(r: InvestmentRow, sales: Sale[]): Investment {
     status: r.status,
     longTerm: Boolean(r.long_term),
     exchange: r.exchange ?? null,
+    targetPrice: r.target_price === null || r.target_price === undefined ? null : String(r.target_price),
+    targetEnabled: r.target_enabled ?? true,
     sortOrder: Number(r.sort_order),
     note: r.note,
     createdAt: r.created_at,
@@ -140,6 +144,21 @@ export async function updateInvestment(id: string, input: InvestmentInput): Prom
   const { data, error } = await getSupabase().from('investments').update(toInvestmentPayload(input)).eq('id', id).select('id')
   if (error) throw mapDbError(error, 'Could not update the investment.')
   if (!data || data.length === 0) throw mapDbError({ code: 'PGRST116' })
+}
+
+/** Set or clear (null) the target sell price of a lot, and whether it is in use. */
+export async function updateInvestmentTarget(id: string, targetPrice: string | null, targetEnabled: boolean): Promise<void> {
+  const clean = targetPrice?.trim() ? targetPrice.trim() : null
+  const { data, error } = await getSupabase().from('investments').update({ target_price: clean, target_enabled: targetEnabled }).eq('id', id).select('id')
+  if (error) throw mapDbError(error, 'Could not save the target price.')
+  if (!data || data.length === 0) throw mapDbError({ code: 'PGRST116' })
+}
+
+/** Switch the targets of several lots on or off at once (the table's "Value at" switch). */
+export async function setTargetsEnabled(ids: string[], targetEnabled: boolean): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await getSupabase().from('investments').update({ target_enabled: targetEnabled }).in('id', ids)
+  if (error) throw mapDbError(error, 'Could not switch the targets.')
 }
 
 export async function updateInvestmentNote(id: string, note: string | null): Promise<void> {

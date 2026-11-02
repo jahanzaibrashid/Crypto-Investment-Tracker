@@ -26,6 +26,9 @@ export const NO_EXCHANGE = '__none__'
 
 export const EMPTY_FILTERS: InvestmentFilterState = { search: '', status: [], from: '', to: '', soldIn: '', exchange: '' }
 
+/** What the Investments page opens with: only open positions (holding and long-term). "Clear filters" shows everything. */
+export const DEFAULT_FILTERS: InvestmentFilterState = { ...EMPTY_FILTERS, status: ['HOLDING', 'LONG_TERM'] }
+
 export function hasActiveFilters(f: InvestmentFilterState): boolean {
   return f.search.trim() !== '' || f.status.length > 0 || f.from !== '' || f.to !== '' || f.soldIn !== '' || f.exchange !== ''
 }

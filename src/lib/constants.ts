@@ -17,6 +17,9 @@ export const COIN_SEARCH_DEBOUNCE_MS = 350
 export const TABLE_PAGE_SIZES = [10, 25, 50, 100] as const
 
 /** Database column limits (mirror supabase/migrations/001_initial_schema.sql). */
+/** Binance spot trading fee per side (0.075%): charged on the buy and again on the sale. */
+export const BINANCE_SPOT_FEE = 0.00075
+
 export const LIMITS = {
   priceIntegerDigits: 18,
   priceDecimals: 12,

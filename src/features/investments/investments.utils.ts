@@ -401,6 +401,84 @@ export function displayROI(lot: LotMetrics): Dec | null {
   return lot.status === 'SOLD' ? lot.realizedROI : lot.unrealizedROI
 }
 
+export interface TargetMetrics {
+  price: Dec
+  /** Remaining quantity × target price. */
+  value: Dec
+  /** Value at the target − remaining cost basis (same basis as unrealized P/L). */
+  pl: Dec
+  roi: Dec | null
+  /** Live price, when known (for the distance and progress below). */
+  livePrice: Dec | null
+  /** Live price is at or above the target. */
+  reached: boolean
+  /** Rise still needed from the live price to the target: % and $ per coin. Null when unpriced or reached. */
+  distancePct: Dec | null
+  distanceUsd: Dec | null
+  /** 0–1: how far the live price has come from the buy price towards the target. Null when the target isn't above the buy price or there's no live price. */
+  progress: number | null
+}
+
+/** What the units still held would be worth, and earn, at the user's target sell price. Null when sold or unset. */
+export function targetMetrics(lot: LotMetrics): TargetMetrics | null {
+  if (lot.status === 'SOLD' || !lot.investment.targetPrice || lot.remainingQuantity.lte(0)) return null
+  const price = dec(lot.investment.targetPrice)
+  const value = currentValue(lot.remainingQuantity, price)
+  const pl = value.minus(lot.remainingCostBasis)
+  const live = lot.currentPrice
+  const reached = live !== null && live.gte(price)
+  const distanceUsd = live === null || reached ? null : price.minus(live)
+  const distancePct = distanceUsd === null || live === null || live.isZero() ? null : distanceUsd.dividedBy(live).times(HUNDRED)
+  const span = price.minus(lot.buyPrice)
+  const progress = live === null || span.lte(0) ? null : Math.min(1, Math.max(0, live.minus(lot.buyPrice).dividedBy(span).toNumber()))
+  return { price, value, pl, roi: roiPercent(pl, lot.remainingCostBasis), livePrice: live, reached, distancePct, distanceUsd, progress }
+}
+
+/** The target when it is switched on: the table then shows it instead of the live price. */
+export function activeTarget(lot: LotMetrics): TargetMetrics | null {
+  return lot.investment.targetEnabled ? targetMetrics(lot) : null
+}
+
+/** Sell price that only breaks even once a fee of `feeRate` is paid on both the buy and the sale. */
+export function breakEvenPrice(buyPrice: Dec, feeRate: number): Dec {
+  return buyPrice.times(1 + feeRate).dividedBy(1 - feeRate)
+}
+
+/** Profit of selling `quantity` bought at `buyPrice` for `sellPrice`, after a fee of `feeRate` on each side. */
+export function profitAfterFees(quantity: Dec, buyPrice: Dec, sellPrice: Dec, feeRate: number): Dec {
+  const bought = quantity.times(buyPrice)
+  const sold = quantity.times(sellPrice)
+  return sold.minus(bought).minus(bought.plus(sold).times(feeRate))
+}
+
+/**
+ * Portfolio totals with switched-on targets in place of live prices (for the table's totals row).
+ * Lots with a target on count at their target, even when their coin has no live price.
+ */
+export function totalsWithTargets(summary: PortfolioSummary, lots: LotMetrics[]) {
+  let value = summary.currentValue
+  let unrealized = summary.unrealizedPL
+  let applicable = summary.applicableCostBasis
+  let targetCount = 0
+  let targetValue = ZERO
+  for (const lot of lots) {
+    const t = activeTarget(lot)
+    if (!t) continue
+    targetCount++
+    targetValue = targetValue.plus(t.value)
+    if (lot.currentValue !== null && lot.unrealizedPL !== null) {
+      value = value.minus(lot.currentValue).plus(t.value)
+      unrealized = unrealized.minus(lot.unrealizedPL).plus(t.pl)
+    } else {
+      value = value.plus(t.value)
+      unrealized = unrealized.plus(t.pl)
+      applicable = applicable.plus(lot.remainingCostBasis)
+    }
+  }
+  const totalPL = summary.realizedPL.plus(unrealized)
+  return { targetCount, targetValue, currentValue: value, unrealizedPL: unrealized, totalPL, overallROI: roiPercent(totalPL, applicable) }
+}
+
 /** Date of the most recent sale (YYYY-MM-DD), or null when nothing was sold. */
 export function lastSoldDate(lot: LotMetrics): string | null {
   let last: string | null = null

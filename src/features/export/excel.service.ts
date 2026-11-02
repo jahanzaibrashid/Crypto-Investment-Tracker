@@ -9,6 +9,7 @@
 // xlsx-js-style: the SheetJS API plus cell styles (font colours on the Spot Trade sheet).
 import * as XLSX from 'xlsx-js-style'
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
+import { BINANCE_SPOT_FEE } from '@/lib/constants'
 import { ZERO, type Dec } from '@/lib/decimal'
 import { EXCEL_DATE_FORMAT, todayIso } from '@/lib/formatters'
 import type { LotMetrics, PortfolioSummary } from '@/features/investments/investments.utils'
@@ -197,7 +198,7 @@ export const SPOT_TRADE_HEADERS = [
 ] as const
 
 /** Binance spot fee per side: charged on the buy, and again on the sale once sold. */
-const BINANCE_FEE = 0.00075
+const BINANCE_FEE = BINANCE_SPOT_FEE
 
 const SPOT_FMT = { usd: '[$$-409]#,##0.00', num: '0.00', pct: '0.00%', date: 'd-mmm-yy' } as const
 
@@ -378,7 +379,7 @@ export function exportFileName(now = new Date()): string {
  * Freeze the header row of every sheet. SheetJS can't write frozen panes, so the sheet XML of the
  * finished file is patched: the empty <sheetView/> gets a frozen pane below row 1.
  */
-export function freezeHeaderRows(xlsx: Uint8Array): Uint8Array {
+export function freezeHeaderRows(xlsx: Uint8Array): Uint8Array<ArrayBuffer> {
   const files = unzipSync(xlsx)
   for (const path of Object.keys(files)) {
     if (!/^xl\/worksheets\/sheet\d+\.xml$/.test(path)) continue
@@ -387,7 +388,8 @@ export function freezeHeaderRows(xlsx: Uint8Array): Uint8Array {
       xml.replace(/<sheetView([^>]*)\/>/, '<sheetView$1><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView>'),
     )
   }
-  return zipSync(files)
+  // fflate always allocates a plain ArrayBuffer (never a shared one), which Blob requires.
+  return zipSync(files) as Uint8Array<ArrayBuffer>
 }
 
 /** Build and download the workbook. Returns the file name. */

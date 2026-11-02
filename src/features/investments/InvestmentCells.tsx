@@ -8,14 +8,14 @@
  *   lines stack with no gap and leading-snug, to keep rows compact
  */
 import { Tooltip } from '@/components/ui/Tooltip'
-import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, Pencil, Target } from 'lucide-react'
 import { PLPill } from '@/components/ui/PLPill'
 import { PLValue } from '@/components/ui/PLValue'
 import { cn } from '@/lib/cn'
 import type { Dec } from '@/lib/decimal'
 import { formatAmount, formatDate, formatPrice, formatQuantity, formatUsd, plClass } from '@/lib/formatters'
 import { PriceStatusBadge } from './PriceStatusBadge'
-import { displayPL, displayROI, saleSummary, type LotMetrics } from './investments.utils'
+import { activeTarget, displayPL, displayROI, saleSummary, targetMetrics, type LotMetrics, type TargetMetrics } from './investments.utils'
 
 const primary = 'text-[15px] leading-snug font-semibold text-foreground'
 const secondary = 'text-[13px] leading-snug text-muted-foreground'
@@ -89,6 +89,21 @@ export function ValueVsInvested({ value, pl, small = false }: { value: Dec; pl: 
   )
 }
 
+/** Props for buttons inside a row: their clicks and keys must not also open the row's details. */
+const insideRow = {
+  onKeyDown: (e: React.KeyboardEvent) => e.stopPropagation(),
+}
+
+/** Badge once the live price has reached the target. */
+function TargetReached({ target }: { target: TargetMetrics }) {
+  if (!target.reached) return null
+  return (
+    <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-success/12 px-2 py-0.5 text-[12px] font-semibold text-success-text">
+      <Target className="h-3 w-3" aria-hidden /> Target reached · sell?
+    </span>
+  )
+}
+
 export function CurrentValueCell({ lot }: { lot: LotMetrics }) {
   if (lot.status === 'SOLD') return empty
   return (
@@ -105,31 +120,72 @@ export function CurrentValueCell({ lot }: { lot: LotMetrics }) {
   )
 }
 
-export function SoldAmountCell({ lot }: { lot: LotMetrics }) {
-  const s = saleSummary(lot)
-  if (!s) return empty
+/**
+ * The target sell price of the coins still held, shown in the Sold amount column until they're sold.
+ * On: a planned figure, boxed with a dashed border so it can't be mistaken for a real sale. Off: one muted line.
+ */
+function TargetSale({ lot, target, onTarget }: { lot: LotMetrics; target: TargetMetrics; onTarget?: () => void }) {
+  const on = lot.investment.targetEnabled
   return (
-    <div className="flex flex-col">
-      <div className={primary}>{formatUsd(s.netProceeds)}</div>
-      <div className={secondary}>
-        {s.count > 1 ? 'avg ' : ''}@ {formatPrice(s.averagePrice)}
-      </div>
-      <div className={dateLine}>
-        {formatDate(s.lastSoldDate)}
-        {s.count > 1 && <span className="text-[13px]"> · last of {s.count}</span>}
-      </div>
-      {s.fees.gt(0) && <div className={secondary}>after {formatUsd(s.fees)} fee</div>}
+    <div className={cn('flex flex-col items-start', on && '-mx-1 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-1.5 py-1')}>
+      <button
+        type="button"
+        title="Edit target price"
+        disabled={!onTarget}
+        onClick={(e) => {
+          e.stopPropagation()
+          onTarget?.()
+        }}
+        {...insideRow}
+        className={cn(
+          'inline-flex items-center gap-1 rounded leading-snug hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:no-underline',
+          on ? 'text-[15px] font-semibold text-foreground' : 'text-[13px] text-muted-foreground',
+        )}
+      >
+        <Target className={cn('h-3.5 w-3.5', on && 'text-primary-text')} aria-hidden />
+        Target @ {formatPrice(target.price)}
+        {!on && ' (off)'}
+        {onTarget && <Pencil className="h-3 w-3 text-muted-foreground" aria-hidden />}
+      </button>
+      {on && <ValueVsInvested value={target.value} pl={target.pl} small />}
+      <TargetReached target={target} />
+    </div>
+  )
+}
+
+/** What was sold (net proceeds, price, date); for coins still held, the target sell price when one is set. */
+export function SoldAmountCell({ lot, onTarget }: { lot: LotMetrics; onTarget?: () => void }) {
+  const s = saleSummary(lot)
+  const target = targetMetrics(lot)
+  if (!s && !target) return empty
+  return (
+    <div className="flex flex-col gap-1">
+      {s && (
+        <div className="flex flex-col">
+          <div className={primary}>{formatUsd(s.netProceeds)}</div>
+          <div className={secondary}>
+            {s.count > 1 ? 'avg ' : ''}@ {formatPrice(s.averagePrice)}
+          </div>
+          <div className={dateLine}>
+            {formatDate(s.lastSoldDate)}
+            {s.count > 1 && <span className="text-[13px]"> · last of {s.count}</span>}
+          </div>
+          {s.fees.gt(0) && <div className={secondary}>after {formatUsd(s.fees)} fee</div>}
+        </div>
+      )}
+      {target && <TargetSale lot={lot} target={target} onTarget={onTarget} />}
     </div>
   )
 }
 
 /** Pill with the $ result, then the % return underneath. */
 export function ProfitLossCell({ lot }: { lot: LotMetrics }) {
-  const roi = displayROI(lot)
+  // Target on: profit at the target replaces the live unrealized P/L.
+  const target = activeTarget(lot)
   return (
     <div className="flex flex-col items-start gap-0.5">
-      <PLPill value={displayPL(lot)} />
-      <PLValue value={roi} format="percent" icon={false} className="pl-0.5 text-[13px]" />
+      <PLPill value={target ? target.pl : displayPL(lot)} planned={target !== null} />
+      <PLValue value={target ? target.roi : displayROI(lot)} format="percent" icon={false} suffix={target ? 'if sold at target' : undefined} className="pl-0.5 text-[13px]" />
       {lot.isPartiallySold && (
         <div className="pl-0.5 text-[13px]">
           <PLValue value={lot.realizedPL} icon={false} suffix="realized" />

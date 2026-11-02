@@ -124,7 +124,11 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
           label="Sold in"
           value={value.soldIn}
           active={value.soldIn !== ''}
-          onChange={(e) => set('soldIn', e.target.value as SoldPeriod)}
+          onChange={(e) => {
+            const soldIn = e.target.value as SoldPeriod
+            // "Sold in" only lists sold investments, so open-position statuses (on by default) would hide everything.
+            onChange({ ...value, soldIn, status: soldIn ? value.status.filter((s) => s === 'SOLD_PROFIT' || s === 'SOLD_LOSS') : value.status })
+          }}
           options={periodOptions}
         />
         <Select

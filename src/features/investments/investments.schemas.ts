@@ -224,3 +224,15 @@ export function toSaleInput(investmentId: string, v: SaleFormValues): SaleInput 
 export const noteFormSchema = z.object({
   note: z.string().max(LIMITS.noteMax, `Note must be at most ${LIMITS.noteMax} characters`),
 })
+
+/** Target sell price: optional (empty clears it), same precision as a buy price. */
+export const targetPriceFormSchema = z.object({
+  targetPrice: decimalField({
+    label: 'Target price',
+    intDigits: LIMITS.priceIntegerDigits,
+    decimals: LIMITS.priceDecimals,
+    sign: 'positive',
+    optional: true,
+  }),
+  targetEnabled: z.boolean(),
+})

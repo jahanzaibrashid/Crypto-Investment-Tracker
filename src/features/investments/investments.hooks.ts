@@ -10,6 +10,8 @@ import {
   reorderOpenInvestments,
   updateInvestment,
   updateInvestmentNote,
+  updateInvestmentTarget,
+  setTargetsEnabled,
 } from './investments.service'
 import type { ImportLotInput, Investment, InvestmentInput, SaleInput } from './investments.types'
 
@@ -71,6 +73,35 @@ export function useInvestmentMutations() {
     onSettled: invalidate,
   })
 
+  const updateTarget = useMutation({
+    mutationFn: ({ id, targetPrice, targetEnabled }: { id: string; targetPrice: string | null; targetEnabled: boolean }) =>
+      updateInvestmentTarget(id, targetPrice, targetEnabled),
+    onMutate: async ({ id, targetPrice, targetEnabled }) => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<Investment[]>(key)
+      qc.setQueryData<Investment[]>(key, (list) => list?.map((i) => (i.id === id ? { ...i, targetPrice: targetPrice?.trim() || null, targetEnabled } : i)))
+      return { previous }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous)
+    },
+    onSettled: invalidate,
+  })
+
+  const switchTargets = useMutation({
+    mutationFn: ({ ids, enabled }: { ids: string[]; enabled: boolean }) => setTargetsEnabled(ids, enabled),
+    onMutate: async ({ ids, enabled }) => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<Investment[]>(key)
+      qc.setQueryData<Investment[]>(key, (list) => list?.map((i) => (ids.includes(i.id) ? { ...i, targetEnabled: enabled } : i)))
+      return { previous }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous)
+    },
+    onSettled: invalidate,
+  })
+
   // Sales change derived status in the database; not optimistic, refetch instead.
   const sell = useMutation({
     mutationFn: (input: SaleInput) => createSale(input),
@@ -105,5 +136,5 @@ export function useInvestmentMutations() {
     onSettled: invalidate,
   })
 
-  return { create, update, remove, updateNote, sell, removeSale, importLots, reorder }
+  return { create, update, remove, updateNote, updateTarget, switchTargets, sell, removeSale, importLots, reorder }
 }

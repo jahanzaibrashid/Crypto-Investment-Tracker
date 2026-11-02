@@ -1,9 +1,9 @@
-import { ArrowDown, ArrowUp, BadgeDollarSign, MoreHorizontal, Pencil, StickyNote, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, BadgeDollarSign, Crosshair, MoreHorizontal, Pencil, StickyNote, Trash2 } from 'lucide-react'
 import { DropdownMenu, type MenuItem } from '@/components/ui/DropdownMenu'
 import { formatDate } from '@/lib/formatters'
 import type { LotMetrics } from './investments.utils'
 
-export type InvestmentAction = 'view' | 'edit' | 'note' | 'sell' | 'delete'
+export type InvestmentAction = 'view' | 'edit' | 'note' | 'target' | 'sell' | 'delete'
 
 /**
  * Moving a row one place in the saved order, offered in the menu on phones (where the drag grip
@@ -68,6 +68,14 @@ export function InvestmentActions({
             ariaLabel: `Edit note: ${label}`,
             icon: <StickyNote className={icon} aria-hidden />,
             onSelect: () => onAction('note', lot),
+          },
+          {
+            label: lot.investment.targetPrice ? 'Edit target price' : 'Set target price',
+            ariaLabel: `Target price: ${label}`,
+            icon: <Crosshair className={icon} aria-hidden />,
+            onSelect: () => onAction('target', lot),
+            disabled: lot.status === 'SOLD',
+            title: lot.status === 'SOLD' ? 'Already fully sold' : 'See the value and profit at the price you plan to sell at',
           },
           {
             label: 'Sell',

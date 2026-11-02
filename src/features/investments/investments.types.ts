@@ -30,6 +30,10 @@ export interface Investment {
   longTerm: boolean
   /** Exchange or wallet the coins were bought on ("Binance", "MetaMask", …); null = not set. */
   exchange: string | null
+  /** Price the user plans to sell this lot at; shows value and profit at that price. null = not set. */
+  targetPrice: DecimalString | null
+  /** Target in use: the table shows value and profit at the target instead of the live price. */
+  targetEnabled: boolean
   /** Saved position among open lots: higher = nearer the top. New lots get the highest value. */
   sortOrder: number
   note: string | null
