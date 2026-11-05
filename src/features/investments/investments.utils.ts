@@ -489,16 +489,17 @@ export function lastSoldDate(lot: LotMetrics): string | null {
 /**
  * The table's permanent order (used whenever no column sort is active):
  * 1. Open lots (including partially sold) in the user's saved order, newest first by default.
- * 2. Fully sold lots, most recently sold first.
+ * 2. Fully sold lots, most recently sold first: by sale date, then by time within the day.
  * Ties fall back to newest-created first, then id, so the order is stable.
  */
 export function permanentOrder(lots: LotMetrics[]): LotMetrics[] {
   const newest = (a: LotMetrics, b: LotMetrics) =>
     b.investment.createdAt.localeCompare(a.investment.createdAt) || a.investment.id.localeCompare(b.investment.id)
+  const lastSoldAt = (lot: LotMetrics) => Math.max(...lot.sales.map((s) => Date.parse(s.sale.soldAt)))
   const open = lots.filter((l) => l.status !== 'SOLD').sort((a, b) => b.investment.sortOrder - a.investment.sortOrder || newest(a, b))
   const sold = lots
     .filter((l) => l.status === 'SOLD')
-    .sort((a, b) => (lastSoldDate(b) ?? '').localeCompare(lastSoldDate(a) ?? '') || newest(a, b))
+    .sort((a, b) => (lastSoldDate(b) ?? '').localeCompare(lastSoldDate(a) ?? '') || lastSoldAt(b) - lastSoldAt(a) || newest(a, b))
   return [...open, ...sold]
 }
 

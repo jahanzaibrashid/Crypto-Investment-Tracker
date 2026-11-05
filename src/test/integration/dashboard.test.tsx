@@ -53,11 +53,6 @@ async function goTo(user: UserEvent, page: 'Overview' | 'Holdings' | 'Investment
   await screen.findByRole('heading', { level: 2, name: page })
 }
 
-/** The Investments page opens on open positions only; this shows the sold ones too. */
-async function showAllStatuses(user: UserEvent) {
-  await user.click(await screen.findByRole('button', { name: 'Clear all' }))
-}
-
 /** Stand-ins for the browser's file download. Returns them so a test can read the file or make it fail. */
 function stubDownload() {
   const createObjectURL = vi.fn((_blob: Blob) => 'blob:export')
@@ -218,10 +213,9 @@ describe('Dashboard', () => {
   it('does not allow a buy date after the first sale when editing', async () => {
     seedInvestment({
       coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', buyDate: '2026-09-01', quantity: '1',
-      sales: [{ id: 's', investmentId: 'x', soldDate: '2026-09-18', quantity: '1', price: '2500', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 's', investmentId: 'x', soldDate: '2026-09-18', quantity: '1', price: '2500', fee: '0', note: null, soldAt: '', createdAt: '' }],
     })
     const { user } = await renderDashboard()
-    await showAllStatuses(user)
     await rowAction(user, 'Ethereum', 'Edit')
     const dialog = await screen.findByRole('dialog', { name: 'Edit investment' })
     const date = within(dialog).getByLabelText('Buy date')
@@ -291,7 +285,6 @@ describe('Dashboard', () => {
     expect(within(dialog).getByTestId('realized-preview')).toHaveTextContent('+$996.00')
     await user.click(within(dialog).getByRole('button', { name: 'Mark as sold' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    await showAllStatuses(user)
 
     const row = (await screen.findAllByTestId('investment-row'))[0]!
     await waitFor(() => expect(within(row).getByText('Sold · Profit')).toBeInTheDocument())
@@ -335,10 +328,9 @@ describe('Dashboard', () => {
       symbol: 'SOL',
       buyPrice: '100',
       buyDate: '2024-03-01',
-      sales: [{ id: 's1', investmentId: 'x', soldDate: '2024-04-01', quantity: '1', price: '110', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 's1', investmentId: 'x', soldDate: '2024-04-01', quantity: '1', price: '110', fee: '0', note: null, soldAt: '', createdAt: '' }],
     }) // sold +10%
     const { user } = await renderDashboard()
-    await showAllStatuses(user)
     await waitFor(() => expect(rows()).toHaveLength(3))
 
     expect(screen.queryByLabelText('Search')).not.toBeInTheDocument() // search filter removed for now
@@ -381,11 +373,10 @@ describe('Dashboard', () => {
     // Bought 0.1 ETH at $2,400 ($240 invested) and sold it at $2,500 ($250 back).
     seedInvestment({
       coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', quantity: '0.1', buyPrice: '2400', buyDate: '2026-09-01',
-      sales: [{ id: 's', investmentId: 'x', soldDate: '2026-09-18', quantity: '0.1', price: '2500', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 's', investmentId: 'x', soldDate: '2026-09-18', quantity: '0.1', price: '2500', fee: '0', note: null, soldAt: '', createdAt: '' }],
     })
     seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', buyDate: '2026-09-02' })
-    const { user } = await renderDashboard()
-    await showAllStatuses(user)
+    await renderDashboard()
     await waitFor(() => expect(rows()).toHaveLength(2))
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
     const cellOf = (coin: string, header: string) => {
@@ -441,14 +432,13 @@ describe('Dashboard', () => {
     seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', longTerm: true, buyDate: '2024-01-03' })
     seedInvestment({
       coinId: 'solana', coinName: 'Solana', symbol: 'SOL', buyPrice: '100', buyDate: '2024-01-02',
-      sales: [{ id: 'a', investmentId: 'x', soldDate: '2024-02-01', quantity: '1', price: '120', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 'a', investmentId: 'x', soldDate: '2024-02-01', quantity: '1', price: '120', fee: '0', note: null, soldAt: '', createdAt: '' }],
     })
     seedInvestment({
       coinId: 'dogecoin', coinName: 'Dogecoin', symbol: 'DOGE', buyPrice: '100', buyDate: '2024-01-01',
-      sales: [{ id: 'b', investmentId: 'y', soldDate: '2024-02-01', quantity: '1', price: '80', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 'b', investmentId: 'y', soldDate: '2024-02-01', quantity: '1', price: '80', fee: '0', note: null, soldAt: '', createdAt: '' }],
     })
     const { user } = await renderDashboard()
-    await showAllStatuses(user)
     await waitFor(() => expect(rows()).toHaveLength(4))
     const byCoin = (name: string) => rows().find((r) => within(r).queryByText(name))!
     expect(byCoin('Bitcoin')).toHaveAttribute('data-row-tone', 'HOLDING')
@@ -509,10 +499,9 @@ describe('Dashboard', () => {
     seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', longTerm: true })
     seedInvestment({
       coinId: 'solana', coinName: 'Solana', symbol: 'SOL', buyPrice: '100',
-      sales: [{ id: 'a', investmentId: 'x', soldDate: '2024-02-01', quantity: '1', price: '120', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 'a', investmentId: 'x', soldDate: '2024-02-01', quantity: '1', price: '120', fee: '0', note: null, soldAt: '', createdAt: '' }],
     })
     const { user } = await renderDashboard()
-    await showAllStatuses(user)
     await waitFor(() => expect(rows()).toHaveLength(3))
     await user.click(screen.getByLabelText('Status'))
     expect(screen.getByRole('checkbox', { name: /^Holding\D*1$/ })).toBeInTheDocument()
@@ -535,10 +524,9 @@ describe('Dashboard', () => {
     seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', buyPrice: '30000' }) // value 50,000 → +20,000
     seedInvestment({
       coinId: 'solana', coinName: 'Solana', symbol: 'SOL', buyPrice: '100',
-      sales: [{ id: 'a', investmentId: 'x', soldDate: '2024-02-01', quantity: '1', price: '120', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 'a', investmentId: 'x', soldDate: '2024-02-01', quantity: '1', price: '120', fee: '0', note: null, soldAt: '', createdAt: '' }],
     }) // sold 120 → +20
     const { user } = await renderDashboard()
-    await showAllStatuses(user)
     await waitFor(() => expect(rows()).toHaveLength(2))
     const totals = screen.getByTestId('totals-row')
     const cell = (id: string) => totals.querySelector(`[data-column="${id}"]`)!
@@ -586,10 +574,9 @@ describe('Dashboard', () => {
   it('shows the coin as text only (no icon), plus the profit/loss pill and ROI', async () => {
     seedInvestment({
       coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', quantity: '0.1', buyPrice: '2400',
-      sales: [{ id: 's', investmentId: 'x', soldDate: '2026-09-18', quantity: '0.1', price: '2500', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 's', investmentId: 'x', soldDate: '2026-09-18', quantity: '0.1', price: '2500', fee: '0', note: null, soldAt: '', createdAt: '' }],
     })
-    const { user } = await renderDashboard()
-    await showAllStatuses(user)
+    await renderDashboard()
     const row = (await screen.findAllByTestId('investment-row'))[0]!
     expect(within(row).queryByTestId('coin-avatar')).not.toBeInTheDocument()
     expect(within(row).getByText('ETH')).toBeInTheDocument()
@@ -692,10 +679,9 @@ describe('Dashboard', () => {
     seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', buyDate: '2024-01-02' })
     seedInvestment({
       coinId: 'solana', coinName: 'Solana', symbol: 'SOL', buyDate: '2024-01-01',
-      sales: [{ id: 's', investmentId: 'x', soldDate: '2024-02-01', quantity: '1', price: '120', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 's', investmentId: 'x', soldDate: '2024-02-01', quantity: '1', price: '120', fee: '0', note: null, soldAt: '', createdAt: '' }],
     })
     const { user } = await renderDashboard()
-    await showAllStatuses(user)
     await waitFor(() => expect(rows()).toHaveLength(2))
     // One trigger per row, no separate icon buttons.
     expect(screen.queryByRole('button', { name: /^Edit: / })).not.toBeInTheDocument()
@@ -857,7 +843,7 @@ describe('Dashboard', () => {
     seedInvestment({ coinId: 'cardano', coinName: 'Cardano', symbol: 'ADA', buyDate: '2024-02-01' })
     seedInvestment({
       coinId: 'solana', coinName: 'Solana', symbol: 'SOL', quantity: '1', buyDate: '2024-01-01',
-      sales: [{ id: 's1', investmentId: 'x', soldDate: '2024-04-01', quantity: '1', price: '200', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 's1', investmentId: 'x', soldDate: '2024-04-01', quantity: '1', price: '200', fee: '0', note: null, soldAt: '', createdAt: '' }],
     })
     // jsdom has no layout: give each row a 40px-high box in document order so dragging has positions to work with.
     const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
@@ -868,7 +854,6 @@ describe('Dashboard', () => {
     try {
       const order = () => rows().map((r) => within(r).getByText(/^(BTC|ETH|ADA|SOL)$/).textContent)
       const { user } = await renderDashboard()
-      await showAllStatuses(user)
       await waitFor(() => expect(rows()).toHaveLength(4))
       // Newest added on top, regardless of buy date; the sold lot comes last and can't be dragged.
       expect(order()).toEqual(['ADA', 'ETH', 'BTC', 'SOL'])
@@ -897,13 +882,12 @@ describe('Dashboard', () => {
   })
 
   it('offers the profit status dropdown only on lots sold at a profit, and saves a change', async () => {
-    const sale = (id: string, price: string) => [{ id, investmentId: 'x', soldDate: '2024-03-01', quantity: '1', price, fee: '0', note: null, createdAt: '' }]
+    const sale = (id: string, price: string) => [{ id, investmentId: 'x', soldDate: '2024-03-01', quantity: '1', price, fee: '0', note: null, soldAt: '', createdAt: '' }]
     seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
     seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', sales: sale('a', '150') })
     seedInvestment({ coinId: 'solana', coinName: 'Solana', symbol: 'SOL', sales: sale('b', '50') })
     seedInvestment({ coinId: 'ripple', coinName: 'XRP', symbol: 'XRP', quantity: '2', sales: sale('c', '150') }) // partly sold
     const { user } = await renderDashboard()
-    await showAllStatuses(user)
     await waitFor(() => expect(rows()).toHaveLength(4))
 
     const select = screen.getByRole('combobox', { name: /^Profit status: ETH/ })
@@ -918,10 +902,9 @@ describe('Dashboard', () => {
   it('shows a profit status the app does not know as not selected, without breaking the table', async () => {
     seedInvestment({
       coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', profitStatus: 'IN_METAMASK' as never,
-      sales: [{ id: 's', investmentId: 'x', soldDate: '2024-03-01', quantity: '1', price: '150', fee: '0', note: null, createdAt: '' }],
+      sales: [{ id: 's', investmentId: 'x', soldDate: '2024-03-01', quantity: '1', price: '150', fee: '0', note: null, soldAt: '', createdAt: '' }],
     })
-    const { user } = await renderDashboard()
-    await showAllStatuses(user)
+    await renderDashboard()
     expect(await screen.findByRole('combobox', { name: /^Profit status: ETH/ })).toHaveValue('')
   })
 

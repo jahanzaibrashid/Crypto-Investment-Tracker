@@ -14,6 +14,7 @@ export function makeSale(overrides: Partial<Sale> = {}): Sale {
     price: '100',
     fee: '0',
     note: null,
+    soldAt: '2024-06-01T00:00:00Z',
     createdAt: '2024-06-01T00:00:00Z',
     ...overrides,
   }

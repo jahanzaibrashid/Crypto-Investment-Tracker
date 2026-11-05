@@ -19,18 +19,20 @@ export interface InvestmentFilterState {
   soldIn: SoldPeriod
   /** "Bought on": '' = all, NO_EXCHANGE = not set, otherwise an exchange name (case-insensitive). */
   exchange: string
+  /** Profit statuses to show, for lots sold in profit (NO_PROFIT_STATUS = not selected); empty = all. */
+  profitStatus: string[]
 }
 
 /** Filter value for investments without an exchange. */
 export const NO_EXCHANGE = '__none__'
 
-export const EMPTY_FILTERS: InvestmentFilterState = { search: '', status: [], from: '', to: '', soldIn: '', exchange: '' }
+/** Filter value for lots sold in profit whose status is "Not selected". */
+export const NO_PROFIT_STATUS = '__none__'
 
-/** What the Investments page opens with: only open positions (holding and long-term). "Clear filters" shows everything. */
-export const DEFAULT_FILTERS: InvestmentFilterState = { ...EMPTY_FILTERS, status: ['HOLDING', 'LONG_TERM'] }
+export const EMPTY_FILTERS: InvestmentFilterState = { search: '', status: [], from: '', to: '', soldIn: '', exchange: '', profitStatus: [] }
 
 export function hasActiveFilters(f: InvestmentFilterState): boolean {
-  return f.search.trim() !== '' || f.status.length > 0 || f.from !== '' || f.to !== '' || f.soldIn !== '' || f.exchange !== ''
+  return f.search.trim() !== '' || f.status.length > 0 || f.from !== '' || f.to !== '' || f.soldIn !== '' || f.exchange !== '' || f.profitStatus.length > 0
 }
 
 /** Local calendar date `days` before the YYYY-MM-DD `iso`. */
@@ -110,6 +112,11 @@ export function filterLots(lots: LotMetrics[], f: InvestmentFilterState, today =
       if (inv.exchange) return false
     } else if (f.exchange && inv.exchange?.toLowerCase() !== f.exchange.toLowerCase()) {
       return false
+    }
+    if (f.profitStatus.length > 0) {
+      // Only lots sold in profit have a status, the same rows that show it in the table.
+      if (positionKind(lot) !== 'SOLD_PROFIT') return false
+      if (!f.profitStatus.includes(inv.profitStatus ?? NO_PROFIT_STATUS)) return false
     }
     if (sold) {
       // Sold investments only (held and partly sold coins are left out), dated by the sale that closed them.

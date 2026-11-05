@@ -13,7 +13,7 @@ const PAGE = 1000 // PostgREST default max-rows
 
 const INVESTMENT_COLUMNS =
   'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, long_term, exchange, target_price::text, target_enabled, profit_status, sort_order, note, created_at, updated_at'
-const SALE_COLUMNS = 'id, investment_id, sold_date, quantity::text, price::text, fee::text, note, created_at'
+const SALE_COLUMNS = 'id, investment_id, sold_date, sold_at, quantity::text, price::text, fee::text, note, created_at'
 
 interface InvestmentRow {
   id: string
@@ -40,6 +40,7 @@ interface SaleRow {
   id: string
   investment_id: string
   sold_date: string
+  sold_at: string
   quantity: string
   price: string
   fee: string
@@ -52,6 +53,7 @@ export function mapSale(r: SaleRow): Sale {
     id: r.id,
     investmentId: r.investment_id,
     soldDate: r.sold_date,
+    soldAt: r.sold_at,
     quantity: String(r.quantity),
     price: String(r.price),
     fee: String(r.fee),

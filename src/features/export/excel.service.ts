@@ -13,7 +13,7 @@ import { BINANCE_SPOT_FEE, PROFIT_STATUSES } from '@/lib/constants'
 import { ZERO, type Dec } from '@/lib/decimal'
 import { EXCEL_DATE_FORMAT, todayIso } from '@/lib/formatters'
 import type { LotMetrics, PortfolioSummary } from '@/features/investments/investments.utils'
-import { displayROI, positionKind } from '@/features/investments/investments.utils'
+import { displayROI, permanentOrder, positionKind } from '@/features/investments/investments.utils'
 
 const FMT = {
   usd: '"$"#,##0.00;[Red]-"$"#,##0.00',
@@ -43,6 +43,9 @@ interface CellStyle {
   alignment?: { horizontal?: 'center'; vertical?: 'center' }
 }
 
+/** A lot's Profit status as shown in the app; null for a value the app doesn't know. */
+const profitStatusLabel = (lot: LotMetrics) => PROFIT_STATUSES.find((s) => s.value === (lot.investment.profitStatus ?? ''))?.label ?? null
+
 const text = (v: string | null | undefined): Cell => ({ t: 's', v: sanitizeCellText(v ?? '') })
 const num = (v: Dec | null, z: string): Cell => (v === null ? { t: 's', v: UNAVAILABLE } : { t: 'n', v: v.toNumber(), z })
 const blank = (): Cell => ({ t: 's', v: '' })
@@ -59,6 +62,15 @@ function excelDateTimeSerial(ms: number): number {
 }
 const date = (iso: string | null): Cell => (iso ? { t: 'n', v: excelDateSerial(iso), z: FMT.date } : blank())
 const pct = (v: Dec | null): Cell => (v === null ? { t: 's', v: 'N/A' } : { t: 'n', v: v.dividedBy(100).toNumber(), z: FMT.pct })
+
+/**
+ * Row order of the lot sheets, from the Investments table: its sold lots bottom row first (oldest
+ * sale on top), then its open lots in their custom order.
+ */
+function exportOrder(lots: LotMetrics[]): LotMetrics[] {
+  const table = permanentOrder(lots)
+  return [...table.filter((l) => l.status === 'SOLD').reverse(), ...table.filter((l) => l.status !== 'SOLD')]
+}
 
 export const INVESTMENT_HEADERS = [
   'Coin',
@@ -147,7 +159,7 @@ function investmentRow(lot: LotMetrics): Cell[] {
     hasSales ? num(lot.netSaleProceeds, FMT.usd) : blank(),
     hasSales ? num(saleFees, FMT.usd) : blank(),
     text(inv.note),
-    text(PROFIT_STATUSES.find((s) => s.value === (inv.profitStatus ?? ''))?.label ?? null),
+    text(profitStatusLabel(lot)),
     text(inv.exchange),
     text(inv.longTerm ? 'Yes' : 'No'),
     text(inv.id),
@@ -181,8 +193,8 @@ function salesRows(lots: LotMetrics[]): Cell[][] {
 }
 
 /**
- * "Spot Trade" sheet: the user's own trading-sheet layout (columns A–K and their formulas kept exactly),
- * plus a Binance fee column. One row per sale, plus one row for the quantity still held.
+ * "Spot Trade" sheet: the user's own trading-sheet layout (columns A–J and their formulas kept exactly),
+ * then Profit Status and a Binance fee column. One row per sale, plus one row for the quantity still held.
  */
 export const SPOT_TRADE_HEADERS = [
   'Coin',
@@ -195,14 +207,14 @@ export const SPOT_TRADE_HEADERS = [
   '% (f)',
   'Total PnL (f)',
   'Sold Date',
-  'Note',
+  'Profit Status',
   '$ Fees (f)',
 ] as const
 
 /** Binance spot fee per side: charged on the buy, and again on the sale once sold. */
 const BINANCE_FEE = BINANCE_SPOT_FEE
 
-const SPOT_FMT = { usd: '[$$-409]#,##0.00', num: '0.00', pct: '0.00%', date: 'd-mmm-yy' } as const
+const SPOT_FMT = { roi: '#,##0.00', num: '0.00', pct: '0.00%', date: 'd-mmm-yy' } as const
 
 /** Two decimals, but whole amounts without them (462.50, but 51 rather than 51.00). */
 const spotAmount = (v: number, fmt: string) => (v.toFixed(2).endsWith('.00') ? fmt.replace('.00', '') : fmt)
@@ -222,39 +234,20 @@ interface SpotTrade {
   /** Sale price, or the current price for the held quantity (null when unavailable). */
   price: Dec | null
   soldDate: string | null
-  note: string | null
 }
 
-/** The Note column: the note, then the exchange (and a missing price, for held rows). */
-const spotNote = (...parts: (string | null | undefined)[]) => parts.filter(Boolean).join(' · ') || null
-
+/** Each lot's sales, then what is still held, so a partially sold lot's rows stay together in its place. */
 function spotTrades(lots: LotMetrics[]): SpotTrade[] {
-  const sold: SpotTrade[] = []
-  const held: SpotTrade[] = []
-  for (const lot of lots) {
-    const exchange = lot.investment.exchange ? `Exchange: ${lot.investment.exchange}` : null
-    for (const s of lot.sales) {
-      sold.push({
-        lot,
-        quantity: s.quantity,
-        price: s.quantity.isZero() ? ZERO : s.grossProceeds.dividedBy(s.quantity),
-        soldDate: s.sale.soldDate,
-        note: spotNote(s.sale.note || lot.investment.note, exchange),
-      })
-    }
-    if (lot.remainingQuantity.gt(0)) {
-      held.push({
-        lot,
-        quantity: lot.remainingQuantity,
-        price: lot.currentPrice,
-        soldDate: null,
-        note: spotNote(lot.investment.note, exchange, lot.currentPrice === null ? 'Current price unavailable' : null),
-      })
-    }
-  }
-  sold.sort((a, b) => a.soldDate!.localeCompare(b.soldDate!) || a.lot.investment.buyDate.localeCompare(b.lot.investment.buyDate))
-  held.sort((a, b) => a.lot.investment.buyDate.localeCompare(b.lot.investment.buyDate))
-  return [...sold, ...held]
+  return exportOrder(lots).flatMap((lot) => {
+    const trades: SpotTrade[] = lot.sales.map((s) => ({
+      lot,
+      quantity: s.quantity,
+      price: s.quantity.isZero() ? ZERO : s.grossProceeds.dividedBy(s.quantity),
+      soldDate: s.sale.soldDate,
+    }))
+    if (lot.remainingQuantity.gt(0)) trades.push({ lot, quantity: lot.remainingQuantity, price: lot.currentPrice, soldDate: null })
+    return trades
+  })
 }
 
 function spotTradeRows(lots: LotMetrics[]): Cell[][] {
@@ -278,11 +271,11 @@ function spotTradeRows(lots: LotMetrics[]): Cell[][] {
       { t: 'n', v: invested, f: `C${n}*B${n}`, z: spotAmount(invested, SPOT_FMT.num) },
       date(t.lot.investment.buyDate),
       priced ? { t: 'n', v: t.price!.toNumber(), z: '0' } : blank(), // whole dollars on screen; the exact price stays in the cell
-      priced ? { t: 'n', v: roi, f: `(B${n}*F${n}) - (B${n}*C${n})`, z: spotAmount(roi, SPOT_FMT.usd) } : { t: 's', v: '', f: `IF(ISNUMBER(F${n}),(B${n}*F${n}) - (B${n}*C${n}),"")` },
+      priced ? { t: 'n', v: roi, f: `(B${n}*F${n}) - (B${n}*C${n})`, z: spotAmount(roi, SPOT_FMT.roi) } : { t: 's', v: '', f: `IF(ISNUMBER(F${n}),(B${n}*F${n}) - (B${n}*C${n}),"")` },
       priced ? { t: 'n', v: invested === 0 ? 0 : Math.round((roi / invested) * 10_000) / 10_000, f: `ROUND(G${n}/D${n},4)`, z: SPOT_FMT.pct } : { t: 's', v: '', f: `IF(ISNUMBER(G${n}),ROUND(G${n}/D${n},4),"")` },
       { t: 'n', v: runningPnl, f: `SUM($G$2:G${n})`, z: spotAmount(runningPnl, SPOT_FMT.num) },
       t.soldDate ? { t: 'n', v: excelDateSerial(t.soldDate), z: SPOT_FMT.date } : blank(),
-      text(t.note),
+      text(positionKind(t.lot) === 'SOLD_PROFIT' ? profitStatusLabel(t.lot) : null), // same rule as the Investments table
       { t: 'n', v: fees, f: `D${n}*0.075% + IF(ISNUMBER(J${n}),B${n}*F${n}*0.075%,0)`, z: spotAmount(fees, SPOT_FMT.num) },
     ]
     return cells.map((c) => ({ ...c, s: style }))
@@ -317,7 +310,7 @@ export function buildWorkbook(input: ExportInput): XLSX.WorkBook {
   const { lots, summary } = input
   const wb = XLSX.utils.book_new()
 
-  const spotWidths = [9, 13, 17, 20, 19, 25, 14, 14, 17, 20, 40, 14]
+  const spotWidths = [9, 13, 17, 20, 19, 25, 14, 14, 17, 20, 18, 14]
   const spot = sheetFromRows(SPOT_TRADE_HEADERS, spotTradeRows(lots), spotWidths)
   SPOT_TRADE_HEADERS.forEach((_, c) => {
     ;(spot[XLSX.utils.encode_cell({ r: 0, c })] as Cell).s = spotFont(SPOT_FORMULA_COLS.has(c) ? SPOT_COLOR.formulaHeader : SPOT_COLOR.held, true)
@@ -325,7 +318,7 @@ export function buildWorkbook(input: ExportInput): XLSX.WorkBook {
   XLSX.utils.book_append_sheet(wb, spot, 'Spot Trade')
 
   const invWidths = [18, 8, 18, 12, 18, 18, 18, 14, 18, 16, 18, 18, 12, 18, 20, 18, 18, 10, 24, 14, 18, 20, 14, 40, 16, 16, 10, 38]
-  XLSX.utils.book_append_sheet(wb, sheetFromRows(INVESTMENT_HEADERS, lots.map(investmentRow), invWidths), 'Investments')
+  XLSX.utils.book_append_sheet(wb, sheetFromRows(INVESTMENT_HEADERS, exportOrder(lots).map(investmentRow), invWidths), 'Investments')
 
   // Summary (key / value)
   const warnings: string[] = []
@@ -394,11 +387,44 @@ export function freezeHeaderRows(xlsx: Uint8Array): Uint8Array<ArrayBuffer> {
   return zipSync(files) as Uint8Array<ArrayBuffer>
 }
 
+/**
+ * Add the Profit status dropdown to the rows of lots sold in profit, on the Spot Trade and Investments
+ * sheets. SheetJS can't write data validation, so the finished file is patched like the frozen header.
+ * Only a change on the Investments sheet comes back on Import.
+ */
+export function addProfitStatusDropdowns(xlsx: Uint8Array, lots: LotMetrics[]): Uint8Array<ArrayBuffer> {
+  const inProfit = (lot: LotMetrics) => positionKind(lot) === 'SOLD_PROFIT'
+  const cells = (headers: readonly string[], rowLots: LotMetrics[]) => {
+    const col = XLSX.utils.encode_col(headers.indexOf('Profit Status'))
+    return rowLots.flatMap((lot, i) => (inProfit(lot) ? [`${col}${i + 2}`] : [])).join(' ')
+  }
+  // Sheet files are numbered in workbook order (see buildWorkbook).
+  const sqrefByFile: Record<string, string> = {
+    'xl/worksheets/sheet1.xml': cells(SPOT_TRADE_HEADERS, spotTrades(lots).map((t) => t.lot)),
+    'xl/worksheets/sheet2.xml': cells(INVESTMENT_HEADERS, exportOrder(lots)),
+  }
+  const options = PROFIT_STATUSES.map((s) => s.label).join(',')
+  const files = unzipSync(xlsx)
+  for (const [path, sqref] of Object.entries(sqrefByFile)) {
+    if (!sqref) continue
+    const validation =
+      '<dataValidations count="1"><dataValidation type="list" allowBlank="1" showErrorMessage="1" ' +
+      `errorTitle="Profit status" error="Pick a status from the list." sqref="${sqref}">` +
+      `<formula1>&quot;${options}&quot;</formula1></dataValidation></dataValidations>`
+    // The schema fixes the element order: dataValidations comes right after the autoFilter.
+    files[path] = strToU8(strFromU8(files[path]!).replace(/<\/sheetData>(<autoFilter[^>]*\/>)?/, `$&${validation}`))
+  }
+  return zipSync(files) as Uint8Array<ArrayBuffer>
+}
+
 /** Build and download the workbook. Returns the file name. */
 export function exportToExcel(input: ExportInput): string {
   const wb = buildWorkbook(input)
   const name = exportFileName(new Date(input.exportedAt))
-  const data = freezeHeaderRows(new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true }) as ArrayBuffer))
+  const data = addProfitStatusDropdowns(
+    freezeHeaderRows(new Uint8Array(XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true }) as ArrayBuffer)),
+    input.lots,
+  )
   const url = URL.createObjectURL(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }))
   const a = document.createElement('a')
   a.href = url

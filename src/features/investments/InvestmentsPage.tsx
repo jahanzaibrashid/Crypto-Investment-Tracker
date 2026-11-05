@@ -24,7 +24,7 @@ import { TargetsSwitch } from './TargetsSwitch'
 import { ColumnsMenu } from './ColumnsMenu'
 import { useColumnPrefs } from './investments.columns'
 import type { InvestmentAction } from './InvestmentActions'
-import { DEFAULT_FILTERS, EMPTY_FILTERS, filterLots, type InvestmentFilterState } from './investments.filters'
+import { EMPTY_FILTERS, filterLots, type InvestmentFilterState } from './investments.filters'
 import { useInvestmentMutations } from './investments.hooks'
 import { reorderedOpenIds, type LotMetrics } from './investments.utils'
 
@@ -37,7 +37,7 @@ export function InvestmentsPage() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [filters, setFilters] = useState<InvestmentFilterState>(DEFAULT_FILTERS)
+  const [filters, setFilters] = useState<InvestmentFilterState>(EMPTY_FILTERS)
   const columns = useColumnPrefs()
   const visibleLots = useMemo(() => filterLots(lots, filters), [lots, filters])
   const exchangeChoices = useMemo(() => exchangeOptions(lots.map((l) => l.investment)), [lots])

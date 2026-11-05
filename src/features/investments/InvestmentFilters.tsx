@@ -2,6 +2,7 @@ import { useId, useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { DateInput } from '@/components/ui/DateInput'
+import { PROFIT_STATUSES } from '@/lib/constants'
 import { cn } from '@/lib/cn'
 import { formatDate, parseDate } from '@/lib/formatters'
 import { MultiSelect } from '@/components/ui/MultiSelect'
@@ -10,6 +11,7 @@ import {
   hasActiveFilters,
   EMPTY_FILTERS,
   NO_EXCHANGE,
+  NO_PROFIT_STATUS,
   soldPeriodOptions,
   soldPeriodRange,
   type InvestmentFilterState,
@@ -26,6 +28,8 @@ const STATUS_OPTIONS: { value: PositionKind; label: string; bg: string; stripe: 
   { value: 'SOLD_PROFIT', label: 'Sold in profit', bg: 'var(--row-profit)', stripe: 'var(--success)' },
   { value: 'SOLD_LOSS', label: 'Sold in loss', bg: 'var(--row-loss)', stripe: 'var(--destructive)' },
 ]
+
+const PROFIT_STATUS_OPTIONS = PROFIT_STATUSES.map((s) => ({ value: s.value || NO_PROFIT_STATUS, label: s.label }))
 
 const swatch = (bg: string, stripe: string) => (
   <span aria-hidden className="h-3 w-4 shrink-0 rounded-sm" style={{ backgroundColor: bg, boxShadow: `inset 3px 0 0 ${stripe}`, outline: '1px solid var(--border)' }} />
@@ -63,6 +67,16 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
     for (const l of lots) counts[positionKind(l)]++
     return STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label, swatch: swatch(o.bg, o.stripe), count: counts[o.value] }))
   }, [lots])
+  // Same with how many lots sold in profit have each profit status; a status nobody has shows no number.
+  const profitStatusOptions = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const l of lots) {
+      if (positionKind(l) !== 'SOLD_PROFIT') continue
+      const key = l.investment.profitStatus ?? NO_PROFIT_STATUS
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return PROFIT_STATUS_OPTIONS.map((o) => ({ ...o, count: counts.get(o.value) }))
+  }, [lots])
 
   // Phones: the fields are collapsed behind a "Filters" button; applied filters show as removable chips.
   const panelId = useId()
@@ -72,6 +86,7 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
     ...value.status.map((s) => ({ key: `status-${s}`, text: label(STATUS_OPTIONS, s), clear: () => set('status', value.status.filter((x) => x !== s)) })),
     value.soldIn !== '' && { key: 'soldIn', text: `Sold: ${label(periodOptions, value.soldIn)}`, clear: () => set('soldIn', '') },
     value.exchange !== '' && { key: 'exchange', text: label(exchangeFilterOptions, value.exchange), clear: () => set('exchange', '') },
+    ...value.profitStatus.map((s) => ({ key: `profit-${s}`, text: label(PROFIT_STATUS_OPTIONS, s), clear: () => set('profitStatus', value.profitStatus.filter((x) => x !== s)) })),
     value.from !== '' && { key: 'from', text: `From ${formatDate(value.from)}`, clear: () => set('from', '') },
     value.to !== '' && { key: 'to', text: `To ${formatDate(value.to)}`, clear: () => set('to', '') },
   ].filter((c): c is { key: string; text: string; clear: () => void } => Boolean(c))
@@ -120,7 +135,7 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
       <div
         id={panelId}
         className={cn(
-          'grid-cols-2 gap-3 md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] md:items-end',
+          'grid-cols-2 gap-3 md:grid md:grid-cols-[repeat(6,minmax(0,1fr))_auto_auto] md:items-end',
           open ? 'grid' : 'hidden',
         )}
       >
@@ -139,7 +154,7 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
           active={value.soldIn !== ''}
           onChange={(e) => {
             const soldIn = e.target.value as SoldPeriod
-            // "Sold in" only lists sold investments, so open-position statuses (on by default) would hide everything.
+            // "Sold in" only lists sold investments, so open-position statuses would hide everything.
             onChange({ ...value, soldIn, status: soldIn ? value.status.filter((s) => s === 'SOLD_PROFIT' || s === 'SOLD_LOSS') : value.status })
           }}
           options={periodOptions}
@@ -150,6 +165,15 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
           active={value.exchange !== ''}
           onChange={(e) => set('exchange', e.target.value)}
           options={exchangeFilterOptions}
+        />
+        <MultiSelect
+          label="Profit status"
+          value={value.profitStatus}
+          active={value.profitStatus.length > 0}
+          // Only lots sold in profit have a status, so any other status would hide everything.
+          onChange={(profitStatus: string[]) => onChange({ ...value, profitStatus, status: profitStatus.length ? value.status.filter((s) => s === 'SOLD_PROFIT') : value.status })}
+          options={profitStatusOptions}
+          placeholder="All profit statuses"
         />
         {/* An unreadable typed date clears that bound instead of filtering on garbage. */}
         <DateInput label="Bought from" hint={null} value={value.from} active={value.from !== ''} max={value.to || undefined} onChange={(v) => set('from', parseDate(v) ?? '')} />

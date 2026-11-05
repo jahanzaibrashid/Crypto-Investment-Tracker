@@ -77,32 +77,32 @@ describe('buildWorkbook', () => {
   it('writes numeric cells with currency, percent and date formats', () => {
     const { wb } = build()
     const ws = wb.Sheets.Investments!
-    // Row 2 = first lot. D = buy date, E = buy price, I = cost basis, R = ROI
-    expect(cell(ws, 'D2')).toMatchObject({ t: 'n', v: excelDateSerial('2024-01-01') })
-    expect(cell(ws, 'D2')!.z).toBe(EXCEL_DATE_FORMAT)
-    expect(cell(ws, 'I2')).toMatchObject({ t: 'n', v: 210 })
-    expect(String(cell(ws, 'I2')!.z)).toContain('$')
-    expect(cell(ws, 'N2')).toMatchObject({ t: 'n', v: 300 }) // current value
-    expect(cell(ws, 'R2')!.v).toBeCloseTo(90 / 210, 10)
-    expect(String(cell(ws, 'R2')!.z)).toContain('%')
+    // Rows follow exportOrder: sold, then open lots newest first, so row 5 = the first lot. D = buy date, E = buy price, I = cost basis, R = ROI
+    expect(cell(ws, 'D5')).toMatchObject({ t: 'n', v: excelDateSerial('2024-01-01') })
+    expect(cell(ws, 'D5')!.z).toBe(EXCEL_DATE_FORMAT)
+    expect(cell(ws, 'I5')).toMatchObject({ t: 'n', v: 210 })
+    expect(String(cell(ws, 'I5')!.z)).toContain('$')
+    expect(cell(ws, 'N5')).toMatchObject({ t: 'n', v: 300 }) // current value
+    expect(cell(ws, 'R5')!.v).toBeCloseTo(90 / 210, 10)
+    expect(String(cell(ws, 'R5')!.z)).toContain('%')
   })
 
   it('marks unavailable prices explicitly instead of writing zero', () => {
     const { wb } = build()
     const ws = wb.Sheets.Investments!
-    // Row 5 = mystery coin with no price
-    expect(cell(ws, 'L5')).toMatchObject({ t: 's', v: 'Unavailable' })
-    expect(cell(ws, 'M5')).toMatchObject({ v: 'Unavailable' })
-    expect(cell(ws, 'N5')).toMatchObject({ t: 's', v: 'Unavailable' })
-    expect(cell(ws, 'P5')).toMatchObject({ t: 's', v: 'Unavailable' })
+    // Row 3 = mystery coin with no price
+    expect(cell(ws, 'L3')).toMatchObject({ t: 's', v: 'Unavailable' })
+    expect(cell(ws, 'M3')).toMatchObject({ v: 'Unavailable' })
+    expect(cell(ws, 'N3')).toMatchObject({ t: 's', v: 'Unavailable' })
+    expect(cell(ws, 'P3')).toMatchObject({ t: 's', v: 'Unavailable' })
   })
 
   it('records sold positions with realized P/L and sale details', () => {
     const { wb } = build()
     const ws = wb.Sheets.Investments!
-    expect(cell(ws, 'S4')!.v).toBe('SOLD (PROFIT)')
-    expect(cell(ws, 'Q4')).toMatchObject({ t: 'n', v: 95 })
-    expect(cell(ws, 'T4')).toMatchObject({ t: 'n', v: excelDateSerial('2024-05-05') })
+    expect(cell(ws, 'S2')!.v).toBe('SOLD (PROFIT)')
+    expect(cell(ws, 'Q2')).toMatchObject({ t: 'n', v: 95 })
+    expect(cell(ws, 'T2')).toMatchObject({ t: 'n', v: excelDateSerial('2024-05-05') })
     const sales = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets['Sales History']!)
     expect(sales).toHaveLength(1)
     expect(sales[0]!['Realized P/L (USD)']).toBe(95)
@@ -111,9 +111,9 @@ describe('buildWorkbook', () => {
   it('neutralizes formula injection in untrusted text', () => {
     const { wb } = build()
     const ws = wb.Sheets.Investments!
-    expect(cell(ws, 'X2')!.v).toBe('\'=HYPERLINK("http://evil","x")')
-    expect(cell(ws, 'X2')!.f).toBeUndefined()
-    expect(cell(ws, 'A5')!.v).toBe("'@Mystery")
+    expect(cell(ws, 'X5')!.v).toBe('\'=HYPERLINK("http://evil","x")')
+    expect(cell(ws, 'X5')!.f).toBeUndefined()
+    expect(cell(ws, 'A3')!.v).toBe("'@Mystery")
     const sales = wb.Sheets['Sales History']!
     expect(cell(sales, 'N2')!.v).toBe("'+cmd|calc")
     const summary = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['Portfolio Summary']!, { header: 1 })

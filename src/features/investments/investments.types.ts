@@ -11,6 +11,8 @@ export interface Sale {
   id: string
   investmentId: string
   soldDate: string
+  /** The sale date plus the time it was saved (set by the database); orders sales within a day. */
+  soldAt: string
   quantity: DecimalString
   price: DecimalString
   fee: DecimalString

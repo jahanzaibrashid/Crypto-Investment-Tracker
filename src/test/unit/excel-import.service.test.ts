@@ -47,7 +47,8 @@ describe('parseImportWorkbook', () => {
     ])
     const { lots, errors } = parseImportWorkbook(data)
     expect(errors).toEqual([])
-    expect(lots.map((l) => l.lot)).toEqual([
+    // Row order is the export's business; here only the contents matter.
+    expect(lots.map((l) => l.lot).sort((a, b) => a.coinId.localeCompare(b.coinId))).toEqual([
       {
         coinId: 'bitcoin',
         coinName: 'Bitcoin',
@@ -87,8 +88,8 @@ describe('parseImportWorkbook', () => {
     const { lots, errors } = parseImportWorkbook(data)
     expect(errors).toEqual([])
     expect(lots.map((l) => [l.lot.quantity, l.lot.sales.length])).toEqual([
+      ['3', 1], // sold lots come first in the export
       ['1', 0],
-      ['3', 1],
     ])
   })
 

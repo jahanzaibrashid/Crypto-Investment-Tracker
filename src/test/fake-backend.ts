@@ -109,14 +109,14 @@ export const investmentsServiceMock = {
     if (sold.plus(input.quantity).gt(inv.quantity)) {
       throw new AppError('Sale quantity exceeds the remaining quantity of this investment.')
     }
-    const sale: Sale = { id: id('sale'), createdAt: now(), ...input }
+    const sale: Sale = { id: id('sale'), createdAt: now(), soldAt: now(), ...input }
     inv.sales.push(sale)
     recomputeStatus(inv)
   }),
   importInvestments: vi.fn(async (lots: ImportLotInput[]) => {
     for (const { sales, ...input } of lots) {
       const inv = seedInvestment(input)
-      inv.sales = sales.map((s) => ({ id: id('sale'), createdAt: now(), investmentId: inv.id, ...s }))
+      inv.sales = sales.map((s) => ({ id: id('sale'), createdAt: now(), soldAt: now(), investmentId: inv.id, ...s }))
       recomputeStatus(inv)
     }
     return lots.length
