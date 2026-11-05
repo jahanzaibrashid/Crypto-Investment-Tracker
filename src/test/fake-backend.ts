@@ -54,6 +54,7 @@ export function seedInvestment(partial: Partial<Investment> & Pick<Investment, '
     exchange: null,
     targetPrice: null,
     targetEnabled: true,
+    profitStatus: null,
     sortOrder: nextSortOrder++,
     note: null,
     createdAt: now(),
@@ -83,6 +84,10 @@ export const investmentsServiceMock = {
   updateInvestmentNote: vi.fn(async (invId: string, note: string | null) => {
     const inv = backend.investments.find((i) => i.id === invId)
     if (inv) inv.note = note?.trim() || null
+  }),
+  updateInvestmentProfitStatus: vi.fn(async (invId: string, profitStatus: Investment['profitStatus']) => {
+    const inv = backend.investments.find((i) => i.id === invId)
+    if (inv) inv.profitStatus = profitStatus
   }),
   updateInvestmentTarget: vi.fn(async (invId: string, targetPrice: string | null, targetEnabled: boolean) => {
     const inv = backend.investments.find((i) => i.id === invId)

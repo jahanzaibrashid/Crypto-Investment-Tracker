@@ -62,7 +62,7 @@ test.describe('portfolio', () => {
     await rowAction(page, 'Ethereum', 'Edit note')
     await page.getByRole('dialog', { name: 'Investment note' }).getByLabel('Note').fill('Long-term hold')
     await page.getByRole('button', { name: 'Save note' }).click()
-    await expect(page.getByText('Long-term hold')).toBeVisible()
+    await expect(page.getByText('Note saved.')).toBeVisible()
 
     // Sell all ETH → realized P/L, no double counting
     await rowAction(page, 'Ethereum', 'Sell')
@@ -76,7 +76,7 @@ test.describe('portfolio', () => {
     await goTo(page, 'Investments')
 
     // Filter by status
-    await page.getByLabel('Status').selectOption('SOLD_PROFIT')
+    await page.getByLabel('Status', { exact: true }).selectOption('SOLD_PROFIT')
     await expect(page.getByTestId('investment-row')).toHaveCount(1)
     await page.getByRole('button', { name: 'Clear filters' }).first().click()
     await expect(page.getByTestId('investment-row')).toHaveCount(3)

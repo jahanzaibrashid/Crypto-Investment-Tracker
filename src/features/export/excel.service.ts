@@ -9,7 +9,7 @@
 // xlsx-js-style: the SheetJS API plus cell styles (font colours on the Spot Trade sheet).
 import * as XLSX from 'xlsx-js-style'
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
-import { BINANCE_SPOT_FEE } from '@/lib/constants'
+import { BINANCE_SPOT_FEE, PROFIT_STATUSES } from '@/lib/constants'
 import { ZERO, type Dec } from '@/lib/decimal'
 import { EXCEL_DATE_FORMAT, todayIso } from '@/lib/formatters'
 import type { LotMetrics, PortfolioSummary } from '@/features/investments/investments.utils'
@@ -85,6 +85,7 @@ export const INVESTMENT_HEADERS = [
   'Net Sale Proceeds (USD)',
   'Sale Fees (USD)',
   'Note',
+  'Profit Status',
   'Exchange',
   // Used by Import: the long-term flag, and a key that links rows in Sales History to their lot.
   'Long-term',
@@ -146,6 +147,7 @@ function investmentRow(lot: LotMetrics): Cell[] {
     hasSales ? num(lot.netSaleProceeds, FMT.usd) : blank(),
     hasSales ? num(saleFees, FMT.usd) : blank(),
     text(inv.note),
+    text(PROFIT_STATUSES.find((s) => s.value === (inv.profitStatus ?? ''))?.label ?? null),
     text(inv.exchange),
     text(inv.longTerm ? 'Yes' : 'No'),
     text(inv.id),
@@ -322,7 +324,7 @@ export function buildWorkbook(input: ExportInput): XLSX.WorkBook {
   })
   XLSX.utils.book_append_sheet(wb, spot, 'Spot Trade')
 
-  const invWidths = [18, 8, 18, 12, 18, 18, 18, 14, 18, 16, 18, 18, 12, 18, 20, 18, 18, 10, 24, 14, 18, 20, 14, 40, 10, 38]
+  const invWidths = [18, 8, 18, 12, 18, 18, 18, 14, 18, 16, 18, 18, 12, 18, 20, 18, 18, 10, 24, 14, 18, 20, 14, 40, 16, 16, 10, 38]
   XLSX.utils.book_append_sheet(wb, sheetFromRows(INVESTMENT_HEADERS, lots.map(investmentRow), invWidths), 'Investments')
 
   // Summary (key / value)

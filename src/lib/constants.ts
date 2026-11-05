@@ -47,6 +47,17 @@ export const COMMON_COINS = [
   { id: 'polkadot', name: 'Polkadot', symbol: 'DOT' },
 ] as const
 
+/** What happened to a lot's profit, as offered in the Investments table. '' = not selected (null in the database). */
+export const PROFIT_STATUSES = [
+  { value: '', label: 'Not selected' },
+  { value: 'SPENT', label: 'Spent' },
+  { value: 'METAMASK_ETH', label: 'MetaMask ETH' },
+  { value: 'METAMASK_BSC', label: 'MetaMask BSC' },
+  { value: 'METAMASK_MATIC', label: 'MetaMask Matic' },
+  { value: 'BINANCE_SPOT', label: 'Binance Spot' },
+  { value: 'BINANCE_FUNDING', label: 'Binance Funding' },
+] as const
+
 /**
  * Exchanges and wallets suggested in the "Bought on" picker. Users can add any other name;
  * names they have used are suggested too (see features/investments/exchanges.ts).

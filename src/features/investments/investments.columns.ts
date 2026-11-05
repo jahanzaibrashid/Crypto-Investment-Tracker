@@ -16,7 +16,7 @@ export const MOVABLE_COLUMNS = [
   { id: 'soldAmount', label: 'Sold amount' },
   { id: 'pl', label: 'Profit / Loss' },
   { id: 'status', label: 'Status' },
-  { id: 'note', label: 'Note' },
+  { id: 'profitStatus', label: 'Profit status' },
 ] as const
 
 export type MovableColumnId = (typeof MOVABLE_COLUMNS)[number]['id']
@@ -46,7 +46,9 @@ export function parseColumnPrefs(raw: string | null): ColumnPrefs {
   if (!raw) return DEFAULT_COLUMN_PREFS
   try {
     const data = JSON.parse(raw) as Partial<Record<keyof ColumnPrefs, unknown>>
-    const pick = (v: unknown) => (Array.isArray(v) ? [...new Set(v.filter((id): id is MovableColumnId => typeof id === 'string' && KNOWN.has(id)))] : [])
+    // Profit status replaced the Note column: it takes that column's saved place.
+    const pick = (v: unknown) =>
+      Array.isArray(v) ? [...new Set(v.map((id) => (id === 'note' ? 'profitStatus' : id)).filter((id): id is MovableColumnId => typeof id === 'string' && KNOWN.has(id)))] : []
     const order = pick(data.order)
     for (const id of DEFAULT_ORDER) if (!order.includes(id)) order.push(id)
     return { order, hidden: pick(data.hidden) }

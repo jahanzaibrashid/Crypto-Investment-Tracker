@@ -14,7 +14,7 @@ import * as XLSX from 'xlsx'
 import { D, type Dec } from '@/lib/decimal'
 import { AppError } from '@/lib/errors'
 import { formatDate, parseDate } from '@/lib/formatters'
-import { LIMITS } from '@/lib/constants'
+import { LIMITS, PROFIT_STATUSES } from '@/lib/constants'
 import { investmentFormSchema, makeSaleFormSchema, toInvestmentInput, toSaleInput } from '@/features/investments/investments.schemas'
 import type { ImportLotInput, Investment } from '@/features/investments/investments.types'
 
@@ -35,6 +35,8 @@ const COL = {
   buyFee: 'Purchase Fees (USD)',
   status: 'Status',
   note: 'Note',
+  /** Optional: files exported before profit statuses were tracked don't have it. */
+  profitStatus: 'Profit Status',
   /** Optional: files exported before exchanges were tracked don't have it. */
   exchange: 'Exchange',
   longTerm: 'Long-term',
@@ -203,7 +205,9 @@ export function parseImportWorkbook(data: ArrayBuffer): ParsedImport {
       continue
     }
     const input = toInvestmentInput(parsed.data)
-    valid.set(r.row, { ...input, sales: [] })
+    const profitStatusLabel = readText(r.get(COL.profitStatus)).toLowerCase()
+    const profitStatus = PROFIT_STATUSES.find((s) => s.label.toLowerCase() === profitStatusLabel)?.value || null
+    valid.set(r.row, { ...input, profitStatus, sales: [] })
     const key = `${input.coinId}|${input.buyDate}`
     byCoinDate.set(key, [...(byCoinDate.get(key) ?? []), r.row])
   }

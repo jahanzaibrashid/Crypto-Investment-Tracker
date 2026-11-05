@@ -60,6 +60,8 @@
   --chart-liquidity-above: #0d9488; /* liquidity levels above the price (swing highs etc.): teal, distinct from the green up-candles */
   --chart-liquidity-below: #db2777; /* liquidity levels below the price: pink, distinct from the red down-candles */
   --long-term-text: #6f4e24;
+  --violet: #7c3aed; /* one of the profit status colors */
+  --violet-text: #6d28d9;
 
   /* Light row backgrounds per status, and their hover shade: the "100" step (not "50"),
      so the status colors stay visible against the white card. */
@@ -123,6 +125,8 @@
   --chart-liquidity-above: #2dd4bf;
   --chart-liquidity-below: #f472b6;
   --long-term-text: #e0c393;
+  --violet: #a78bfa;
+  --violet-text: #c4b5fd;
 
   --row-holding: #13213d;
   --row-holding-hover: #182947;

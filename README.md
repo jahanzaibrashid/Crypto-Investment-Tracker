@@ -35,7 +35,7 @@ A single-page web app for tracking cryptocurrency purchases and sales in USD. It
 - **Pages:** `/overview` (summary cards), `/holdings` (positions per coin), `/investments` (table, filters, all investment dialogs) and `/notes` (portfolio note).
   - `/` redirects to `/overview`.
   - The sidebar on desktop, or the pill bar on smaller screens, highlights the current page.
-- **Investments table:** columns are #, Coin, Bought (qty @ buy price + buy date), Invested, Current value (@ live price), Sold amount (@ sold price + sold date), Profit / Loss ($ + %), Status, Note, ⋯ (actions menu).
+- **Investments table:** columns are #, Coin, Bought (qty @ buy price + buy date), Invested, Current value (@ live price), Sold amount (@ sold price + sold date), Profit / Loss ($ + %), Status, Profit status (dropdown: Not selected, Spent, MetaMask ETH, MetaMask BSC, MetaMask Matic, Binance Spot, Binance Funding; shown only on lots sold at a profit), ⋯ (actions menu). The note is in the details panel.
   - Every header has an ⓘ explaining the column.
   - A color legend (with counts) sits above the table; click an item to filter by that status.
   - A totals row sums the rows currently shown (after filters).
@@ -309,7 +309,7 @@ The last two Investments columns, **Long-term** and **Lot ID**, and the **Lot ID
 
 **Import** (next to Export in the header) takes an `.xlsx` in the export format, up to 5 MB and 2000 investments. Nothing is saved until you confirm.
 
-1. **Read and validate.** Columns are matched by header name. Only purchase and sale inputs are read: coin, symbol, CoinGecko ID, buy date, buy price, quantity, fee, note and long-term from **Investments**, and sale date, quantity, price, fee and note from **Sales History**. Computed columns such as P/L are ignored. Each row is checked with the same rules as the Add and Sell forms.
+1. **Read and validate.** Columns are matched by header name. Only purchase and sale inputs are read: coin, symbol, CoinGecko ID, buy date, buy price, quantity, fee, note, profit status and long-term from **Investments**, and sale date, quantity, price, fee and note from **Sales History**. Computed columns such as P/L are ignored. Each row is checked with the same rules as the Add and Sell forms.
 2. **Preview.** The dialog lists what will be added, what is skipped as a duplicate, and which rows can't be imported, with the reason.
    - **Duplicate:** an investment with the same coin, buy date, price, quantity and fee is already in your portfolio. Matching is one-to-one, so two identical rows in the file against one existing investment import one of them.
    - **Sales** are linked to their purchase by **Lot ID**. Files without that column match by coin and buy date, and ask for a Lot ID when that is ambiguous. If a sale is invalid, its purchase is skipped too, so a position is never saved with the wrong status.

@@ -61,9 +61,9 @@ describe('sanitizeCellText', () => {
 })
 
 describe('buildWorkbook', () => {
-  it('produces a valid xlsx with Investments, Portfolio Summary and Sales History sheets', () => {
+  it('produces a valid xlsx with Spot Trade, Investments, Portfolio Summary and Sales History sheets', () => {
     const { wb } = build()
-    expect(wb.SheetNames).toEqual(['Investments', 'Portfolio Summary', 'Sales History'])
+    expect(wb.SheetNames).toEqual(['Spot Trade', 'Investments', 'Portfolio Summary', 'Sales History'])
   })
 
   it('exports every record (not just one page) with the required columns', () => {
@@ -119,11 +119,14 @@ describe('buildWorkbook', () => {
     const summary = XLSX.utils.sheet_to_json<string[]>(wb.Sheets['Portfolio Summary']!, { header: 1 })
     const noteRow = summary.find((r) => r[0] === 'Portfolio note')
     expect(noteRow![1]).toBe("'-2+3")
-    // No cell anywhere carries a formula
+    // Only Spot Trade has formulas, its own calculations; none of them carries text from the data.
     for (const name of wb.SheetNames) {
       const sheet = wb.Sheets[name]!
       for (const key of Object.keys(sheet)) {
-        if (!key.startsWith('!')) expect((sheet[key] as XLSX.CellObject).f).toBeUndefined()
+        if (key.startsWith('!')) continue
+        const formula = (sheet[key] as XLSX.CellObject).f
+        if (name === 'Spot Trade') expect(formula ?? '').not.toMatch(/HYPERLINK|evil|cmd|Mystery/i)
+        else expect(formula).toBeUndefined()
       }
     }
   })

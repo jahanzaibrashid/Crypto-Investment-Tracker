@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
-type Tone = 'neutral' | 'positive' | 'negative' | 'warning' | 'info' | 'longTerm'
+type Tone = 'neutral' | 'positive' | 'negative' | 'warning' | 'info' | 'longTerm' | 'violet'
 
 const tones: Record<Tone, string> = {
   neutral: 'border-border bg-muted text-foreground',
@@ -10,6 +10,7 @@ const tones: Record<Tone, string> = {
   warning: 'border-warning/40 bg-warning/8 text-warning-text',
   info: 'border-primary/40 bg-primary/8 text-primary-text',
   longTerm: 'border-long-term/40 bg-long-term/8 text-long-term-text',
+  violet: 'border-violet/40 bg-violet/8 text-violet-text',
 }
 
 export function Badge({

@@ -33,7 +33,7 @@ const SALE_HEADER = ['CoinGecko ID', 'Buy Date', 'Sale Date', 'Quantity Sold', '
 describe('parseImportWorkbook', () => {
   it('round-trips an export: purchases, fees, notes, long-term flag, exchange and sales', () => {
     const data = exported([
-      makeInvestment({ id: 'a', quantity: '2', buyPrice: '100', buyFee: '10', note: '=SUM(A1)', longTerm: true, exchange: 'Binance' }),
+      makeInvestment({ id: 'a', quantity: '2', buyPrice: '100', buyFee: '10', note: '=SUM(A1)', longTerm: true, exchange: 'Binance', profitStatus: 'BINANCE_FUNDING' }),
       makeInvestment({
         id: 'b',
         coinId: 'ethereum',
@@ -58,6 +58,7 @@ describe('parseImportWorkbook', () => {
         buyFee: '10',
         longTerm: true,
         exchange: 'Binance',
+        profitStatus: 'BINANCE_FUNDING',
         note: '=SUM(A1)', // the export's formula guard is removed again
         sales: [],
       },
@@ -71,6 +72,7 @@ describe('parseImportWorkbook', () => {
         buyFee: '0',
         longTerm: false,
         exchange: null,
+        profitStatus: null,
         note: null,
         sales: [{ soldDate: '2024-03-01', quantity: '0.5', price: '3000', fee: '2', note: 'partial' }],
       },
@@ -155,7 +157,7 @@ describe('splitDuplicates', () => {
       const inv = makeInvestment(r)
       return {
         row: i + 2,
-        lot: { coinId: inv.coinId, coinName: inv.coinName, symbol: inv.symbol, buyDate: inv.buyDate, buyPrice: inv.buyPrice, quantity: inv.quantity, buyFee: inv.buyFee, longTerm: false, exchange: null, note: null, sales: [] },
+        lot: { coinId: inv.coinId, coinName: inv.coinName, symbol: inv.symbol, buyDate: inv.buyDate, buyPrice: inv.buyPrice, quantity: inv.quantity, buyFee: inv.buyFee, longTerm: false, exchange: null, profitStatus: null, note: null, sales: [] },
       }
     })
 

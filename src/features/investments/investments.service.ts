@@ -7,12 +7,12 @@
  */
 import { getSupabase } from '@/lib/supabase'
 import { mapDbError } from '@/lib/errors'
-import type { ImportLotInput, Investment, InvestmentInput, Sale, SaleInput } from './investments.types'
+import type { ImportLotInput, Investment, InvestmentInput, ProfitStatus, Sale, SaleInput } from './investments.types'
 
 const PAGE = 1000 // PostgREST default max-rows
 
 const INVESTMENT_COLUMNS =
-  'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, long_term, exchange, target_price::text, target_enabled, sort_order, note, created_at, updated_at'
+  'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, long_term, exchange, target_price::text, target_enabled, profit_status, sort_order, note, created_at, updated_at'
 const SALE_COLUMNS = 'id, investment_id, sold_date, quantity::text, price::text, fee::text, note, created_at'
 
 interface InvestmentRow {
@@ -29,6 +29,7 @@ interface InvestmentRow {
   exchange: string | null
   target_price: string | null
   target_enabled: boolean
+  profit_status: ProfitStatus | null
   sort_order: number | string
   note: string | null
   created_at: string
@@ -74,6 +75,7 @@ export function mapInvestment(r: InvestmentRow, sales: Sale[]): Investment {
     exchange: r.exchange ?? null,
     targetPrice: r.target_price === null || r.target_price === undefined ? null : String(r.target_price),
     targetEnabled: r.target_enabled ?? true,
+    profitStatus: r.profit_status ?? null,
     sortOrder: Number(r.sort_order),
     note: r.note,
     createdAt: r.created_at,
@@ -168,6 +170,12 @@ export async function updateInvestmentNote(id: string, note: string | null): Pro
   if (!data || data.length === 0) throw mapDbError({ code: 'PGRST116' })
 }
 
+export async function updateInvestmentProfitStatus(id: string, profitStatus: ProfitStatus | null): Promise<void> {
+  const { data, error } = await getSupabase().from('investments').update({ profit_status: profitStatus }).eq('id', id).select('id')
+  if (error) throw mapDbError(error, 'Could not save the profit status.')
+  if (!data || data.length === 0) throw mapDbError({ code: 'PGRST116' })
+}
+
 export async function deleteInvestment(id: string): Promise<void> {
   const { error } = await getSupabase().from('investments').delete().eq('id', id)
   if (error) throw mapDbError(error, 'Could not delete the investment.')
@@ -195,6 +203,7 @@ export async function createSale(input: SaleInput): Promise<void> {
 export async function importInvestments(lots: ImportLotInput[]): Promise<number> {
   const payload = lots.map((lot) => ({
     ...toInvestmentPayload(lot),
+    profit_status: lot.profitStatus,
     sales: lot.sales.map((s) => ({
       sold_date: s.soldDate,
       quantity: s.quantity,

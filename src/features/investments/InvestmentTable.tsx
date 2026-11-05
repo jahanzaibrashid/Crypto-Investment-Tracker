@@ -39,6 +39,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { InvestmentActions, type InvestmentAction, type RowMove } from './InvestmentActions'
 import { BoughtCell, CoinCell, CurrentValueCell, InvestedCell, ProfitLossCell, SoldAmountCell, ValueVsInvested } from './InvestmentCells'
 import { PositionStatusBadge } from './PositionStatusBadge'
+import { ProfitStatusSelect } from './ProfitStatusSelect'
 import { tableColumnOrder, tableColumnVisibility, type ColumnPrefs } from './investments.columns'
 import { activeTarget, displayPL, permanentOrder, positionKind, saleSummary, summarizePortfolio, totalsWithTargets, type LotMetrics, type PortfolioSummary } from './investments.utils'
 
@@ -182,20 +183,13 @@ function buildColumns(onAction: (a: InvestmentAction, lot: LotMetrics) => void) 
       enableSorting: false,
       cell: ({ row }) => <PositionStatusBadge lot={row.original} size="lg" />,
     }),
-    helper.accessor((l) => l.investment.note ?? '', {
-      id: 'note',
-      header: 'Note',
+    helper.accessor((l) => l.investment.profitStatus ?? '', {
+      id: 'profitStatus',
+      header: 'Profit status',
       enableSorting: false,
-      cell: ({ row }) => {
-        const note = row.original.investment.note
-        return note ? (
-          <p className="max-w-32 truncate text-[13px] text-muted-foreground" title={note}>
-            {note}
-          </p>
-        ) : (
-          <span className="text-[15px] text-muted-foreground">—</span>
-        )
-      },
+      // Only a lot sold at a profit has a profit to keep track of.
+      cell: ({ row }) =>
+        positionKind(row.original) === 'SOLD_PROFIT' ? <ProfitStatusSelect lot={row.original} /> : <span className="text-[15px] text-muted-foreground">—</span>,
     }),
     helper.display({
       id: 'actions',
@@ -214,9 +208,6 @@ function buildColumns(onAction: (a: InvestmentAction, lot: LotMetrics) => void) 
 const SHRINK = new Set(['coin'])
 /** Numeric columns: kept on one line so figures don't wrap. All columns are left-aligned. */
 const NUMERIC = new Set(['buyDate', 'invested', 'soldAmount', 'currentValue', 'pl'])
-
-/** Columns hidden on phones (< sm) to keep the sideways-scrolling table short; the note is in the details panel. */
-const PHONE_HIDDEN = new Set(['note'])
 
 /** Names for the sort buttons ("Sort by investment amount"). */
 const SORT_LABELS: Record<string, string> = {
@@ -333,7 +324,6 @@ function TotalsRow({ totals, lots, columnIds }: { totals: PortfolioSummary; lots
               PAD_Y,
               padX(i, last),
               NUMERIC.has(id) && 'whitespace-nowrap',
-              PHONE_HIDDEN.has(id) && 'max-sm:hidden',
             )}
           >
             {cells[id] ?? null}
@@ -486,7 +476,6 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false,
                             PAD_Y,
                             padX(i, last),
                             SHRINK.has(header.column.id) && 'w-px',
-                            PHONE_HIDDEN.has(header.column.id) && 'max-sm:hidden',
                             sorted ? 'text-foreground' : 'text-muted-foreground',
                           )}
                         >
@@ -550,7 +539,6 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false,
                           padX(i, last),
                           NUMERIC.has(cell.column.id) && 'whitespace-nowrap',
                           SHRINK.has(cell.column.id) && 'w-px',
-                          PHONE_HIDDEN.has(cell.column.id) && 'max-sm:hidden',
                           cell.column.id === 'actions' ? 'py-0.5 sm:py-1.5' : PAD_Y,
                         )}
                       >
