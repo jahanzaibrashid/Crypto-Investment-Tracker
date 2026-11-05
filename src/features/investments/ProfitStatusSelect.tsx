@@ -13,7 +13,7 @@ import type { LotMetrics } from './investments.utils'
 /** One color per status: the pill, and the same status's line in the open list. */
 const TONES = {
   '': { badge: 'neutral', text: 'text-muted-foreground' },
-  SPENT: { badge: 'negative', text: 'text-destructive-text' },
+  SPENT: { badge: 'pink', text: 'text-pink-text' },
   METAMASK_ETH: { badge: 'warning', text: 'text-warning-text' },
   METAMASK_BSC: { badge: 'longTerm', text: 'text-long-term-text' },
   METAMASK_MATIC: { badge: 'violet', text: 'text-violet-text' },

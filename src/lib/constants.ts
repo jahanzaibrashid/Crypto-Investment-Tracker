@@ -50,7 +50,7 @@ export const COMMON_COINS = [
 /** What happened to a lot's profit, as offered in the Investments table. '' = not selected (null in the database). */
 export const PROFIT_STATUSES = [
   { value: '', label: 'Not selected' },
-  { value: 'SPENT', label: 'Spent' },
+  { value: 'SPENT', label: 'Withdraw' },
   { value: 'METAMASK_ETH', label: 'MetaMask ETH' },
   { value: 'METAMASK_BSC', label: 'MetaMask BSC' },
   { value: 'METAMASK_MATIC', label: 'MetaMask Matic' },

@@ -206,7 +206,9 @@ export function parseImportWorkbook(data: ArrayBuffer): ParsedImport {
     }
     const input = toInvestmentInput(parsed.data)
     const profitStatusLabel = readText(r.get(COL.profitStatus)).toLowerCase()
-    const profitStatus = PROFIT_STATUSES.find((s) => s.label.toLowerCase() === profitStatusLabel)?.value || null
+    // Files exported before the rename say "Spent".
+    const profitStatus =
+      profitStatusLabel === 'spent' ? 'SPENT' : PROFIT_STATUSES.find((s) => s.label.toLowerCase() === profitStatusLabel)?.value || null
     valid.set(r.row, { ...input, profitStatus, sales: [] })
     const key = `${input.coinId}|${input.buyDate}`
     byCoinDate.set(key, [...(byCoinDate.get(key) ?? []), r.row])

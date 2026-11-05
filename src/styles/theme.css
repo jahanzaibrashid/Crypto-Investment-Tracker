@@ -62,6 +62,8 @@
   --long-term-text: #6f4e24;
   --violet: #7c3aed; /* one of the profit status colors */
   --violet-text: #6d28d9;
+  --pink: #db2777; /* one of the profit status colors */
+  --pink-text: #be185d;
 
   /* Light row backgrounds per status, and their hover shade: the "100" step (not "50"),
      so the status colors stay visible against the white card. */
@@ -127,6 +129,8 @@
   --long-term-text: #e0c393;
   --violet: #a78bfa;
   --violet-text: #c4b5fd;
+  --pink: #f472b6;
+  --pink-text: #f9a8d4;
 
   --row-holding: #13213d;
   --row-holding-hover: #182947;

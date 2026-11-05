@@ -40,7 +40,7 @@ export interface Investment {
   targetPrice: DecimalString | null
   /** Target in use: the table shows value and profit at the target instead of the live price. */
   targetEnabled: boolean
-  /** What happened to the profit: spent, or the wallet or Binance account it is kept in. null = not selected. */
+  /** What happened to the profit: withdrawn (stored as SPENT), or the wallet or Binance account it is kept in. null = not selected. */
   profitStatus: ProfitStatus | null
   /** Saved position among open lots: higher = nearer the top. New lots get the highest value. */
   sortOrder: number

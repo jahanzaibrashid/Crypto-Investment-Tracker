@@ -35,7 +35,7 @@ A single-page web app for tracking cryptocurrency purchases and sales in USD. It
 - **Pages:** `/overview` (summary cards), `/holdings` (positions per coin), `/investments` (table, filters, all investment dialogs) and `/notes` (portfolio note).
   - `/` redirects to `/overview`.
   - The sidebar on desktop, or the pill bar on smaller screens, highlights the current page.
-- **Investments table:** columns are #, Coin, Bought (qty @ buy price + buy date), Invested, Current value (@ live price), Sold amount (@ sold price + sold date), Profit / Loss ($ + %), Status, Profit status (dropdown: Not selected, Spent, MetaMask ETH, MetaMask BSC, MetaMask Matic, Binance Spot, Binance Funding; shown only on lots sold at a profit), ⋯ (actions menu). The note is in the details panel.
+- **Investments table:** columns are #, Coin, Bought (qty @ buy price + buy date), Invested, Current value (@ live price), Sold amount (@ sold price + sold date), Profit / Loss ($ + %), Status, Profit status (dropdown: Not selected, Withdraw, MetaMask ETH, MetaMask BSC, MetaMask Matic, Binance Spot, Binance Funding; shown only on lots sold at a profit), ⋯ (actions menu). The note is in the details panel.
   - Every header has an ⓘ explaining the column.
   - A color legend (with counts) sits above the table; click an item to filter by that status.
   - A totals row sums the rows currently shown (after filters).

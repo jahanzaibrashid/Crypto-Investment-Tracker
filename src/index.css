@@ -37,6 +37,8 @@
   --color-long-term-text: var(--long-term-text);
   --color-violet: var(--violet);
   --color-violet-text: var(--violet-text);
+  --color-pink: var(--pink);
+  --color-pink-text: var(--pink-text);
   --color-overlay: var(--overlay);
   --shadow-card: var(--elevation-card);
   --shadow-popover: var(--elevation-popover);
