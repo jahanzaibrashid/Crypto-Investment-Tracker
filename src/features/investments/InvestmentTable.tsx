@@ -31,6 +31,7 @@ import { ArrowDown, ArrowUp, ArrowUpDown, GripVertical, ListRestart } from 'luci
 import { Pagination } from '@/components/ui/Pagination'
 import { PLPill } from '@/components/ui/PLPill'
 import { PLValue } from '@/components/ui/PLValue'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { cn } from '@/lib/cn'
 import { TABLE_PAGE_SIZES } from '@/lib/constants'
 import { ZERO, type Dec } from '@/lib/decimal'
@@ -152,28 +153,28 @@ function buildColumns(onAction: (a: InvestmentAction, lot: LotMetrics) => void) 
       sortFn: 'alphanumeric',
       cell: ({ row }) => <BoughtCell lot={row.original} />,
     }),
-    // Sorts by the figure the cell shows (excluding the fee shown underneath).
-    helper.accessor((l) => l.grossPurchaseCost.toNumber(), {
+    // Sorts by the buy price the cell leads with.
+    helper.accessor((l) => l.buyPrice.toNumber(), {
       id: 'invested',
-      header: 'Invested',
+      header: 'Buy at',
       cell: ({ row }) => <InvestedCell lot={row.original} />,
     }),
     helper.accessor((l) => (l.status === 'SOLD' ? undefined : n(l.currentValue)), {
       id: 'currentValue',
-      header: 'Current value',
+      header: 'Current',
       sortUndefined: 'last',
       cell: ({ row }) => <CurrentValueCell lot={row.original} />,
     }),
-    // Not sold yet: sorts by the value at the target, when one is on.
-    helper.accessor((l) => n(saleSummary(l)?.netProceeds ?? activeTarget(l)?.value ?? null), {
+    // Sorts by the sale price the cell leads with. Not sold yet: the target price, when one is on.
+    helper.accessor((l) => n(saleSummary(l)?.averagePrice ?? activeTarget(l)?.price ?? null), {
       id: 'soldAmount',
-      header: 'Sold amount',
+      header: 'Sold at',
       sortUndefined: 'last',
       cell: ({ row }) => <SoldAmountCell lot={row.original} onTarget={() => onAction('target', row.original)} />,
     }),
     helper.accessor((l) => n(activeTarget(l)?.pl ?? displayPL(l)), {
       id: 'pl',
-      header: 'Profit / Loss',
+      header: () => <Tooltip text="Profit and Loss">PnL</Tooltip>,
       sortUndefined: 'last',
       cell: ({ row }) => <ProfitLossCell lot={row.original} />,
     }),
@@ -185,7 +186,12 @@ function buildColumns(onAction: (a: InvestmentAction, lot: LotMetrics) => void) 
     }),
     helper.accessor((l) => l.investment.profitStatus ?? '', {
       id: 'profitStatus',
-      header: 'Profit status',
+      header: () => (
+        <Tooltip text="Profit status">
+          <span aria-hidden>PS</span>
+          <span className="sr-only">Profit status</span>
+        </Tooltip>
+      ),
       enableSorting: false,
       // Only a lot sold at a profit has a profit to keep track of.
       cell: ({ row }) =>
@@ -213,8 +219,8 @@ const NUMERIC = new Set(['buyDate', 'invested', 'soldAmount', 'currentValue', 'p
 const SORT_LABELS: Record<string, string> = {
   coin: 'coin',
   buyDate: 'buy date',
-  invested: 'investment amount',
-  soldAmount: 'sold amount',
+  invested: 'buy price',
+  soldAmount: 'sold price',
   currentValue: 'current value',
   pl: 'profit/loss',
 }
@@ -487,7 +493,8 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false,
                                 className="inline-flex items-end gap-1 rounded text-left uppercase hover:text-foreground"
                                 aria-label={`Sort by ${SORT_LABELS[header.column.id] ?? header.column.id}`}
                               >
-                                <span className="max-w-[5rem]">
+                                {/* Headers are upper case, except "PnL". */}
+                                <span className={cn('max-w-[5rem]', header.column.id === 'pl' && 'normal-case')}>
                                   <table.FlexRender header={header} />
                                 </span>
                                 {sorted === 'asc' ? (

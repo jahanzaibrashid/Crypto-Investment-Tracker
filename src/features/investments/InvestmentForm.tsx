@@ -54,6 +54,9 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, exchangeO
   const p = safeDecimal(price)
   const q = safeDecimal(quantity)
   const gross = p && q ? q.times(p) : null
+  // Saving this quantity leaves the lot fully sold, so the database clears its exchange.
+  const sold = safeDecimal(soldQuantity)
+  const willBeSold = sold !== null && sold.gt(0) && q !== null && q.eq(sold)
 
   const submit = handleSubmit(async (values) => {
     await onSubmit(toInvestmentInput(values))
@@ -69,19 +72,21 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, exchangeO
         )}
       />
 
-      <Controller
-        control={control}
-        name="exchange"
-        render={({ field, fieldState }) => (
-          <ExchangePicker
-            value={field.value ?? ''}
-            onChange={field.onChange}
-            onBlur={field.onBlur}
-            options={exchangeOptions}
-            error={fieldState.error?.message}
-          />
-        )}
-      />
+      {!willBeSold && (
+        <Controller
+          control={control}
+          name="exchange"
+          render={({ field, fieldState }) => (
+            <ExchangePicker
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              options={exchangeOptions}
+              error={fieldState.error?.message}
+            />
+          )}
+        />
+      )}
 
       {/* One row on wider screens: how much, at what price, and when (same layout as the sell form). */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

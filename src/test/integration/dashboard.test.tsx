@@ -358,11 +358,11 @@ describe('Dashboard', () => {
     // Numeric columns sort highest-first on the first click (BTC +$25,000, SOL +$10, ETH −$3,000).
     await user.click(screen.getByRole('button', { name: 'Sort by profit/loss' }))
     await waitFor(() => expect(within(rows()[0]!).getByText('Bitcoin')).toBeInTheDocument())
-    expect(screen.getByRole('columnheader', { name: /Profit \/ Loss/ })).toHaveAttribute('aria-sort', 'descending')
+    expect(screen.getByRole('columnheader', { name: /PnL/ })).toHaveAttribute('aria-sort', 'descending')
     expect(rows().map((r) => within(r).getByText(/^(BTC|SOL|ETH)$/).textContent)).toEqual(['BTC', 'SOL', 'ETH'])
     await user.click(screen.getByRole('button', { name: 'Sort by profit/loss' }))
     await waitFor(() => expect(within(rows()[0]!).getByText('Ethereum')).toBeInTheDocument())
-    expect(screen.getByRole('columnheader', { name: /Profit \/ Loss/ })).toHaveAttribute('aria-sort', 'ascending')
+    expect(screen.getByRole('columnheader', { name: /PnL/ })).toHaveAttribute('aria-sort', 'ascending')
 
     // Filters only affect the table; the Overview totals cover every investment.
     await goTo(user, 'Overview')
@@ -385,25 +385,25 @@ describe('Dashboard', () => {
     }
     expect(cellOf('Ethereum', 'Bought')).toHaveTextContent(/^0\.11-Sep-26$/) // two lines: qty / date
     // Profit / Loss shows the amount and the % together: $250 − $240 = +$10 (+4.17%)
-    expect(cellOf('Ethereum', 'Profit / Loss')).toHaveTextContent('+$10')
-    expect(cellOf('Ethereum', 'Profit / Loss')).toHaveTextContent('+4.17%')
-    expect(cellOf('Ethereum', 'Invested')).toHaveTextContent(/^@ \$2,400\$240$/) // @ buy price / amount
-    expect(cellOf('Ethereum', 'Sold amount')).toHaveTextContent('$250.00')
-    expect(cellOf('Ethereum', 'Sold amount')).toHaveTextContent('@ $2,500')
-    expect(cellOf('Ethereum', 'Sold amount')).toHaveTextContent('18-Sep-26')
-    expect(cellOf('Ethereum', 'Current value')).toHaveTextContent('—')
+    expect(cellOf('Ethereum', 'PnL')).toHaveTextContent('+$10')
+    expect(cellOf('Ethereum', 'PnL')).toHaveTextContent('+4.17%')
+    expect(cellOf('Ethereum', 'Buy at')).toHaveTextContent(/^@ \$2,400\$240$/) // @ buy price / amount
+    expect(cellOf('Ethereum', 'Sold at')).toHaveTextContent('$250.00')
+    expect(cellOf('Ethereum', 'Sold at')).toHaveTextContent('@ $2,500')
+    expect(cellOf('Ethereum', 'Sold at')).toHaveTextContent('18-Sep-26')
+    expect(cellOf('Ethereum', 'Current')).toHaveTextContent('—')
     // Positions still held show no sale values; current value shows "amount @ live price".
-    expect(cellOf('Bitcoin', 'Sold amount')).toHaveTextContent('—')
-    await waitFor(() => expect(cellOf('Bitcoin', 'Current value')).toHaveTextContent('$50,000.00'))
-    expect(cellOf('Bitcoin', 'Current value')).toHaveTextContent('@ $50,000')
+    expect(cellOf('Bitcoin', 'Sold at')).toHaveTextContent('—')
+    await waitFor(() => expect(cellOf('Bitcoin', 'Current')).toHaveTextContent('$50,000.00'))
+    expect(cellOf('Bitcoin', 'Current')).toHaveTextContent('@ $50,000')
   })
 
-  it('shows columns in the order Coin, Bought, Invested, Current value, Sold amount, Profit / Loss', async () => {
+  it('shows columns in the order Coin, Bought, Buy at, Current, Sold at, PnL', async () => {
     seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
     await renderDashboard()
     await waitFor(() => expect(rows()).toHaveLength(1))
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
-    expect(headers.slice(0, 9)).toEqual(['#', 'Coin', 'Bought', 'Invested', 'Current value', 'Sold amount', 'Profit / Loss', 'Status', 'Profit status'])
+    expect(headers.slice(0, 9)).toEqual(['#', 'Coin', 'Bought', 'Buy at', 'Current', 'Sold at', 'PnL', 'Status', 'PSProfit status'])
   })
 
   it('has separate Overview, Holdings, Investments and Notes pages with the active page highlighted', async () => {

@@ -72,6 +72,15 @@ export function formatPrice(value: Num): string {
   return formatUsd(value, { maxDecimals: 12, dropZeroCents: true })
 }
 
+/**
+ * Coin price rounded to whole dollars from $1,000 up ($2,300.50 → $2,301), for compact live prices.
+ * Below that it keeps its decimals (same as formatPrice): cents matter on a cheaper coin.
+ */
+export function formatWholePrice(value: Num): string {
+  const d = toDec(value)
+  return d.abs().gte(1000) ? formatUsd(d.toDecimalPlaces(0, D.ROUND_HALF_UP), { dropZeroCents: true }) : formatPrice(d)
+}
+
 /** Coin quantity: up to 8 decimals normally, more for dust amounts; trailing zeros trimmed. */
 /** `maxDecimals` caps the decimals (rounded down, trailing zeros trimmed), e.g. 3 for compact totals. */
 export function formatQuantity(value: Num, { maxDecimals }: { maxDecimals?: number } = {}): string {

@@ -7,7 +7,7 @@ import { targetMetrics, type LotMetrics } from './investments.utils'
 
 /**
  * "Value at: Live | Targets" for every row in view that has a target. Sets each row's own switch,
- * so a single row can still be changed afterwards (then neither side is highlighted: "mixed").
+ * so switching a filtered view can leave rows differing (then neither side is highlighted: "mixed").
  * Hidden when no row has a target.
  */
 export function TargetsSwitch({ lots }: { lots: LotMetrics[] }) {

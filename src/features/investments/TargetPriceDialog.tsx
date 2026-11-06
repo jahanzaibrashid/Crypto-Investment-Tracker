@@ -97,15 +97,6 @@ function TargetPriceForm({ lot, onDone }: { lot: LotMetrics; onDone: () => void 
           Break-even after Binance fees ({FEE_PCT} buy + {FEE_PCT} sell): <span className="tabular font-medium text-foreground">{formatPrice(breakEven.toDecimalPlaces(2, D.ROUND_UP))}</span>
         </p>
       </div>
-      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background p-3">
-        <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-primary-solid" {...register('targetEnabled')} />
-        <span className="text-sm">
-          <span className="font-medium text-foreground">Use the target in the table</span>
-          <span className="block text-xs text-muted-foreground">
-            On: this row shows its value and profit at the target instead of the live price. Off: the target is kept but the live price is shown. You can also switch it in the table.
-          </span>
-        </span>
-      </label>
       {preview && (
         <dl className="grid grid-cols-2 gap-3 rounded-lg border border-border bg-background px-3 py-2 text-sm">
           <div>

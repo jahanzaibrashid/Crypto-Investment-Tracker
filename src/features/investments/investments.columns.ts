@@ -11,12 +11,12 @@ import { useUserId } from '@/features/auth/auth.context'
 /** Movable columns, in their default order. */
 export const MOVABLE_COLUMNS = [
   { id: 'buyDate', label: 'Bought' },
-  { id: 'invested', label: 'Invested' },
-  { id: 'currentValue', label: 'Current value' },
-  { id: 'soldAmount', label: 'Sold amount' },
-  { id: 'pl', label: 'Profit / Loss' },
+  { id: 'invested', label: 'Buy at' },
+  { id: 'currentValue', label: 'Current' },
+  { id: 'soldAmount', label: 'Sold at' },
+  { id: 'pl', label: 'PnL' },
   { id: 'status', label: 'Status' },
-  { id: 'profitStatus', label: 'Profit status' },
+  { id: 'profitStatus', label: 'Profit status (PS)' },
 ] as const
 
 export type MovableColumnId = (typeof MOVABLE_COLUMNS)[number]['id']

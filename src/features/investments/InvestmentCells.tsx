@@ -13,7 +13,7 @@ import { PLPill } from '@/components/ui/PLPill'
 import { PLValue } from '@/components/ui/PLValue'
 import { cn } from '@/lib/cn'
 import type { Dec } from '@/lib/decimal'
-import { formatAmount, formatDate, formatPrice, formatQuantity, formatUsd, plClass } from '@/lib/formatters'
+import { formatAmount, formatDate, formatPrice, formatQuantity, formatUsd, formatWholePrice, plClass } from '@/lib/formatters'
 import { PriceStatusBadge } from './PriceStatusBadge'
 import { activeTarget, displayPL, displayROI, saleSummary, targetMetrics, type LotMetrics, type TargetMetrics } from './investments.utils'
 
@@ -107,10 +107,21 @@ function TargetReached({ target }: { target: TargetMetrics }) {
 export function CurrentValueCell({ lot }: { lot: LotMetrics }) {
   if (lot.status === 'SOLD') return empty
   return (
-    <div className="flex flex-col items-start">
-      {/* Current coin price leads; the lot's value sits under it. */}
+    <div className="flex flex-col items-start gap-0.5">
+      {/* Live coin price leads, in a chip; the lot's value sits under it. */}
       {lot.currentPrice ? (
-        <div className={cn('text-[15px] leading-snug font-semibold', lot.unrealizedPL === null || lot.unrealizedPL.isZero() ? 'text-foreground' : plClass(lot.unrealizedPL))}>@ {formatPrice(lot.currentPrice)}</div>
+        <span
+          className={cn(
+            'inline-flex items-center rounded-full border px-2 py-px text-[15px] leading-snug font-semibold whitespace-nowrap',
+            lot.unrealizedPL === null || lot.unrealizedPL.isZero()
+              ? 'border-border bg-muted text-foreground'
+              : lot.unrealizedPL.gt(0)
+                ? 'border-success/40 bg-success/8 text-success-text'
+                : 'border-destructive/40 bg-destructive/8 text-destructive-text',
+          )}
+        >
+          @ {formatWholePrice(lot.currentPrice)}
+        </span>
       ) : (
         <div className={primary}>Unavailable</div>
       )}
@@ -130,7 +141,7 @@ function TargetSale({ lot, target, onTarget }: { lot: LotMetrics; target: Target
     <div className={cn('flex flex-col items-start', on && '-mx-1 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-1.5 py-1')}>
       <button
         type="button"
-        title="Edit target price"
+        title={on ? 'Edit target price' : 'Target is off: edit target price'}
         disabled={!onTarget}
         onClick={(e) => {
           e.stopPropagation()
@@ -139,12 +150,11 @@ function TargetSale({ lot, target, onTarget }: { lot: LotMetrics; target: Target
         {...insideRow}
         className={cn(
           'inline-flex items-center gap-1 rounded leading-snug hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 disabled:no-underline',
-          on ? 'text-[15px] font-semibold text-foreground' : 'text-[13px] text-muted-foreground',
+          on ? 'text-[15px] font-semibold text-foreground' : 'text-[14px] text-muted-foreground',
         )}
       >
-        <Target className={cn('h-3.5 w-3.5', on && 'text-primary-text')} aria-hidden />
-        Target @ {formatPrice(target.price)}
-        {!on && ' (off)'}
+        Target = <span className={cn(!on && 'text-[16px]')}>{formatPrice(target.price)}</span>
+        {!on && <span className="sr-only"> (off)</span>}
         {onTarget && <Pencil className="h-3 w-3 text-muted-foreground" aria-hidden />}
       </button>
       {on && <ValueVsInvested value={target.value} pl={target.pl} small />}
@@ -162,10 +172,10 @@ export function SoldAmountCell({ lot, onTarget }: { lot: LotMetrics; onTarget?: 
     <div className="flex flex-col gap-1">
       {s && (
         <div className="flex flex-col">
-          <div className={primary}>{formatUsd(s.netProceeds)}</div>
-          <div className={secondary}>
+          <div className={primary}>
             {s.count > 1 ? 'avg ' : ''}@ {formatPrice(s.averagePrice)}
           </div>
+          <div className="text-[15px] leading-snug text-muted-foreground">{formatUsd(s.netProceeds)}</div>
           <div className={dateLine}>
             {formatDate(s.lastSoldDate)}
             {s.count > 1 && <span className="text-[13px]"> · last of {s.count}</span>}

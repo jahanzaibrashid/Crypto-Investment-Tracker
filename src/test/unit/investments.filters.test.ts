@@ -87,15 +87,15 @@ describe('filterLots by exchange ("Bought on")', () => {
   const unset = on(null)
   const all = [binanceSoldOct, binanceHeld, metamask, unset]
 
-  it('keeps one platform (ignoring case)', () => {
+  it('keeps one platform (ignoring case), leaving out sold lots', () => {
     const f = { ...EMPTY_FILTERS, exchange: 'binance' }
     expect(hasActiveFilters(f)).toBe(true)
-    expect(filterLots(all, f, TODAY)).toEqual([binanceSoldOct, binanceHeld])
+    expect(filterLots(all, f, TODAY)).toEqual([binanceHeld])
   })
   it('finds investments with no platform set', () => {
     expect(filterLots(all, { ...EMPTY_FILTERS, exchange: NO_EXCHANGE }, TODAY)).toEqual([unset])
   })
-  it('combines with the sale period', () => {
-    expect(filterLots(all, { ...EMPTY_FILTERS, exchange: 'Binance', soldIn: '2026-10' }, TODAY)).toEqual([binanceSoldOct])
+  it('finds nothing combined with a sale period: sold lots have no platform', () => {
+    expect(filterLots(all, { ...EMPTY_FILTERS, exchange: 'Binance', soldIn: '2026-10' }, TODAY)).toEqual([])
   })
 })

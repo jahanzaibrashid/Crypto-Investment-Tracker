@@ -108,6 +108,8 @@ export function filterLots(lots: LotMetrics[], f: InvestmentFilterState, today =
     if (f.status.length > 0 && !f.status.includes(positionKind(lot))) return false
     if (f.from && inv.buyDate < f.from) return false
     if (f.to && inv.buyDate > f.to) return false
+    // Sold lots have no exchange, so they match neither a platform nor "Not set".
+    if (f.exchange && lot.status === 'SOLD') return false
     if (f.exchange === NO_EXCHANGE) {
       if (inv.exchange) return false
     } else if (f.exchange && inv.exchange?.toLowerCase() !== f.exchange.toLowerCase()) {

@@ -50,16 +50,20 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
   const set = <K extends keyof InvestmentFilterState>(key: K, v: InvestmentFilterState[K]) => onChange({ ...value, [key]: v })
   const active = hasActiveFilters(value)
   const periodOptions = useMemo(() => soldPeriodOptions(lots), [lots])
-  // Only exchanges actually used, plus "Not set" when some investments have none.
+  // Only exchanges actually used, plus "Not set" when some investments have none. Sold lots don't count.
+  // The chosen one stays listed even if its last lot was sold, so an active filter never looks switched off.
   const exchangeFilterOptions = useMemo(() => {
-    const used = usedExchanges(lots.map((l) => l.investment))
-    const anyUnset = lots.some((l) => !l.investment.exchange)
+    const open = lots.filter((l) => l.status !== 'SOLD')
+    const used = usedExchanges(open.map((l) => l.investment))
+    const chosen = value.exchange
+    const anyUnset = chosen === NO_EXCHANGE || open.some((l) => !l.investment.exchange)
+    const missing = chosen && chosen !== NO_EXCHANGE && !used.some((name) => name.toLowerCase() === chosen.toLowerCase())
     return [
       { value: '', label: 'All platforms' },
-      ...used.map((name) => ({ value: name, label: name })),
+      ...(missing ? [chosen, ...used] : used).map((name) => ({ value: name, label: name })),
       ...(anyUnset ? [{ value: NO_EXCHANGE, label: 'Not set' }] : []),
     ]
-  }, [lots])
+  }, [lots, value.exchange])
   const soldRange = soldPeriodRange(value.soldIn)
   // Status choices with their row color and how many investments have each status (across all investments).
   const statusOptions = useMemo(() => {
