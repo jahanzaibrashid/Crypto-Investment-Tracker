@@ -135,7 +135,7 @@ async function handleRest(state: MockState, route: Route, table: string) {
           return json(route, 409, { code: '23505', message: 'duplicate key value violates unique constraint' })
         }
         const row: Row = { id: uid(), user_id: user.id, created_at: nowIso(), updated_at: nowIso(), ...input }
-        if (table === 'investments') Object.assign(row, { status: 'HOLDING', buy_fee: row.buy_fee ?? '0', long_term: row.long_term ?? false })
+        if (table === 'investments') Object.assign(row, { status: 'HOLDING', buy_fee: row.buy_fee ?? '0' })
         if (table === 'portfolio_notes') Object.assign(row, { version: 1 })
         if (table === 'investment_sales') {
           const inv = state.investments.find((i) => i.id === row.investment_id && i.user_id === user.id)

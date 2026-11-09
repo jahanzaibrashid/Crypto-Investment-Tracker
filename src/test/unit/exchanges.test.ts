@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { exchangeOptions, normalizeExchange, usedExchanges } from '@/features/investments/exchanges'
+import { exchangeColor, exchangeOptions, normalizeExchange, usedExchanges } from '@/features/investments/exchanges'
 import { EXCHANGE_PRESETS } from '@/lib/constants'
 
 const inv = (exchange: string | null) => ({ exchange })
@@ -35,5 +35,26 @@ describe('normalizeExchange', () => {
     expect(normalizeExchange('   ', known)).toBeNull()
     expect(normalizeExchange(null, known)).toBeNull()
     expect(normalizeExchange('x'.repeat(60), known)).toHaveLength(40)
+  })
+})
+
+describe('exchangeColor', () => {
+  it('gives each main place its own color, matching its Profit status color', () => {
+    const tones = ['Binance', 'MetaMask ETH', 'MetaMask BSC', 'MetaMask Matic'].map((n) => exchangeColor(n).badge)
+    expect(tones).toEqual(['info', 'warning', 'teal', 'violet'])
+    expect(new Set(tones).size).toBe(tones.length)
+  })
+
+  it('ignores case and spaces, and shows grey when not set', () => {
+    expect(exchangeColor('  metamask eth ')).toEqual(exchangeColor('MetaMask ETH'))
+    expect(exchangeColor(null).badge).toBe('neutral')
+    expect(exchangeColor('').badge).toBe('neutral')
+  })
+
+  it('gives any other name a stable color that is never green, red or grey', () => {
+    for (const name of [...EXCHANGE_PRESETS, 'My Wallet', 'Ledger']) {
+      expect(['positive', 'negative', 'neutral']).not.toContain(exchangeColor(name).badge)
+      expect(exchangeColor(name)).toEqual(exchangeColor(name.toUpperCase()))
+    }
   })
 })

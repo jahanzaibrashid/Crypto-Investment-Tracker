@@ -11,6 +11,7 @@ import { errorMessage } from '@/lib/errors'
 import { formatDate, formatQuantity } from '@/lib/formatters'
 import { PortfolioGate } from '@/features/dashboard/DashboardLayout'
 import { usePortfolio } from '@/features/dashboard/portfolio.context'
+import { BulkActionsBar } from './BulkActionsBar'
 import { InvestmentDetails } from './InvestmentDetails'
 import { InvestmentDialog } from './InvestmentDialog'
 import { exchangeOptions } from './exchanges'
@@ -41,6 +42,15 @@ export function InvestmentsPage() {
   const columns = useColumnPrefs()
   const visibleLots = useMemo(() => filterLots(lots, filters), [lots, filters])
   const exchangeChoices = useMemo(() => exchangeOptions(lots.map((l) => l.investment)), [lots])
+
+  // Rows ticked in the checkbox column. Only rows still in the table count (a filter or a delete
+  // can hide selected rows; they drop out of the selection then, so bulk actions never touch hidden rows).
+  const [selection, setSelection] = useState<Set<string>>(() => new Set())
+  const selectedLots = useMemo(() => visibleLots.filter((l) => selection.has(l.investment.id)), [visibleLots, selection])
+  if (selection.size > 0 && selectedLots.length !== selection.size) setSelection(new Set(selectedLots.map((l) => l.investment.id)))
+  const visibleIds = useMemo(() => new Set(selectedLots.map((l) => l.investment.id)), [selectedLots])
+  const clearSelection = useCallback(() => setSelection(new Set()), [])
+  const selectAll = useCallback(() => setSelection(new Set(visibleLots.map((l) => l.investment.id))), [visibleLots])
 
   // "Add Investment" links from other pages arrive with { openAdd: true }.
   const [dialog, setDialog] = useState<DialogState>(() =>
@@ -123,7 +133,27 @@ export function InvestmentsPage() {
                   }
                 />
               ) : (
-                <InvestmentTable lots={visibleLots} onAction={onAction} onReorder={onReorder} reordering={reorder.isPending} columnPrefs={columns.prefs} />
+                <>
+                  {selectedLots.length > 0 && (
+                    <BulkActionsBar
+                      selected={selectedLots}
+                      totalCount={visibleLots.length}
+                      exchangeOptions={exchangeChoices}
+                      onSelectAll={selectAll}
+                      onClear={clearSelection}
+                    />
+                  )}
+                  <InvestmentTable
+                    lots={visibleLots}
+                    onAction={onAction}
+                    onReorder={onReorder}
+                    reordering={reorder.isPending}
+                    columnPrefs={columns.prefs}
+                    selectedIds={visibleIds}
+                    onSelectionChange={setSelection}
+                    exchangeOptions={exchangeChoices}
+                  />
+                </>
               )}
             </>
           )}

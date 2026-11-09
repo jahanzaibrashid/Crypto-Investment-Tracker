@@ -1,11 +1,11 @@
-import { ArrowDownRight, ArrowUpRight, Hourglass, Wallet } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, Wallet } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { POSITION_KIND_LABEL, positionKind, type LotMetrics, type PositionKind } from './investments.utils'
 
-const TONE = { HOLDING: 'info', LONG_TERM: 'longTerm', SOLD_PROFIT: 'positive', SOLD_LOSS: 'negative' } as const
-const ICON = { HOLDING: Wallet, LONG_TERM: Hourglass, SOLD_PROFIT: ArrowUpRight, SOLD_LOSS: ArrowDownRight }
+const TONE = { HOLDING: 'info', SOLD_PROFIT: 'positive', SOLD_LOSS: 'negative' } as const
+const ICON = { HOLDING: Wallet, SOLD_PROFIT: ArrowUpRight, SOLD_LOSS: ArrowDownRight }
 
-/** Holding / Long-term / Sold · Profit / Sold · Loss — label + icon + color, never color alone. */
+/** Holding / Sold · Profit / Sold · Loss — label + icon + color, never color alone. */
 export function PositionStatusBadge({ lot, kind = positionKind(lot), size }: { lot: LotMetrics; kind?: PositionKind; size?: 'md' | 'lg' }) {
   const Icon = ICON[kind]
   return (

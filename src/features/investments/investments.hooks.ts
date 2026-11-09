@@ -13,6 +13,8 @@ import {
   updateInvestmentProfitStatus,
   updateInvestmentTarget,
   setTargetsEnabled,
+  updateExchangeMany,
+  updateProfitStatusMany,
 } from './investments.service'
 import type { ImportLotInput, Investment, InvestmentInput, ProfitStatus, SaleInput } from './investments.types'
 
@@ -117,6 +119,38 @@ export function useInvestmentMutations() {
     onSettled: invalidate,
   })
 
+  // Bulk actions on selected rows (and the per-row "Held on" pill): optimistic, restored on failure.
+  const bulkProfitStatus = useMutation({
+    mutationFn: ({ ids, profitStatus }: { ids: string[]; profitStatus: ProfitStatus | null }) => updateProfitStatusMany(ids, profitStatus),
+    onMutate: async ({ ids, profitStatus }) => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<Investment[]>(key)
+      const set = new Set(ids)
+      qc.setQueryData<Investment[]>(key, (list) => list?.map((i) => (set.has(i.id) ? { ...i, profitStatus } : i)))
+      return { previous }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous)
+    },
+    onSettled: invalidate,
+  })
+
+  const updateExchange = useMutation({
+    mutationFn: ({ ids, exchange }: { ids: string[]; exchange: string | null }) => updateExchangeMany(ids, exchange),
+    onMutate: async ({ ids, exchange }) => {
+      await qc.cancelQueries({ queryKey: key })
+      const previous = qc.getQueryData<Investment[]>(key)
+      const set = new Set(ids)
+      const clean = exchange?.trim() || null
+      qc.setQueryData<Investment[]>(key, (list) => list?.map((i) => (set.has(i.id) ? { ...i, exchange: clean } : i)))
+      return { previous }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) qc.setQueryData(key, ctx.previous)
+    },
+    onSettled: invalidate,
+  })
+
   // Sales change derived status in the database; not optimistic, refetch instead.
   const sell = useMutation({
     mutationFn: (input: SaleInput) => createSale(input),
@@ -151,5 +185,19 @@ export function useInvestmentMutations() {
     onSettled: invalidate,
   })
 
-  return { create, update, remove, updateNote, updateProfitStatus, updateTarget, switchTargets, sell, removeSale, importLots, reorder }
+  return {
+    create,
+    update,
+    remove,
+    updateNote,
+    updateProfitStatus,
+    bulkProfitStatus,
+    updateExchange,
+    updateTarget,
+    switchTargets,
+    sell,
+    removeSale,
+    importLots,
+    reorder,
+  }
 }

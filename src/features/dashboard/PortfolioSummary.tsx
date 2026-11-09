@@ -100,7 +100,7 @@ export function PortfolioSummary({ summary, loading }: { summary: Summary | null
           label="Holdings"
           icon={<Coins className="h-4 w-4" aria-hidden />}
           value={summary.openLotCount}
-          sub={`${summary.coinsHeld} coin${summary.coinsHeld === 1 ? '' : 's'} · ${summary.longTermLotCount} long-term · ${summary.soldLotCount} sold`}
+          sub={`${summary.coinsHeld} coin${summary.coinsHeld === 1 ? '' : 's'} · ${summary.soldLotCount} sold`}
           testId="card-holdings"
         />
       </div>

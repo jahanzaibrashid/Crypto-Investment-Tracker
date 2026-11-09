@@ -15,7 +15,7 @@ const TONES = {
   '': { badge: 'neutral', text: 'text-muted-foreground' },
   SPENT: { badge: 'pink', text: 'text-pink-text' },
   METAMASK_ETH: { badge: 'warning', text: 'text-warning-text' },
-  METAMASK_BSC: { badge: 'longTerm', text: 'text-long-term-text' },
+  METAMASK_BSC: { badge: 'teal', text: 'text-teal-text' },
   METAMASK_MATIC: { badge: 'violet', text: 'text-violet-text' },
   BINANCE_SPOT: { badge: 'info', text: 'text-primary-text' },
   BINANCE_FUNDING: { badge: 'positive', text: 'text-success-text' },

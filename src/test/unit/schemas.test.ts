@@ -10,7 +10,6 @@ const valid = {
   buyPrice: '42000.50',
   quantity: '0.015',
   buyFee: '',
-  longTerm: false,
   note: '',
 }
 
@@ -29,7 +28,6 @@ describe('investmentFormSchema', () => {
       buyPrice: '42000.50',
       quantity: '0.015',
       buyFee: '0',
-      longTerm: false,
       exchange: null, // optional; not set
       note: null,
     })

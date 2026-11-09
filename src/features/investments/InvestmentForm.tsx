@@ -29,7 +29,7 @@ interface InvestmentFormProps {
   soldQuantity?: string
   /** Earliest sale of this lot (edit mode): the buy date may not be later than this. */
   firstSaleDate?: string | null
-  /** Suggestions for "Bought on": presets + exchanges already used (exchangeOptions). */
+  /** Suggestions for "Held on": presets + exchanges already used (exchangeOptions). */
   exchangeOptions: string[]
   submitLabel: string
   onSubmit: (input: InvestmentInput) => Promise<void>
@@ -50,7 +50,9 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, exchangeO
 
   // Fees are hidden for now: buyFee stays in the form values (0 for new lots, the saved value
   // when editing), so turning the field back on later needs no data or schema change.
-  const [price, quantity] = useWatch({ control, name: ['buyPrice', 'quantity'] })
+  const [price, quantity, coin] = useWatch({ control, name: ['buyPrice', 'quantity', 'coin'] })
+  // Labels name the chosen coin: "ETH Quantity", "ETH Price".
+  const symbol = coin?.symbol?.toUpperCase() ?? ''
   const p = safeDecimal(price)
   const q = safeDecimal(quantity)
   const gross = p && q ? q.times(p) : null
@@ -91,7 +93,7 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, exchangeO
       {/* One row on wider screens: how much, at what price, and when (same layout as the sell form). */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Input
-          label="Quantity purchased"
+          label={symbol ? `${symbol} Quantity` : 'Quantity'}
           inputMode="decimal"
           placeholder="0.0"
           error={errors.quantity?.message}
@@ -103,7 +105,7 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, exchangeO
           {...register('quantity')}
         />
         <Input
-          label="Buy price per coin"
+          label={symbol ? `${symbol} Price` : 'Price'}
           inputMode="decimal"
           leading="$"
           placeholder="0.00"
@@ -135,16 +137,6 @@ export function InvestmentForm({ initial, soldQuantity, firstSaleDate, exchangeO
         </div>
         {!gross && <div className="text-xs text-muted-foreground">Enter the quantity and buy price to see the total.</div>}
       </div>
-
-      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-background p-3">
-        <input type="checkbox" className="mt-0.5 h-4 w-4 shrink-0 accent-long-term" {...register('longTerm')} />
-        <span className="text-sm">
-          <span className="font-medium text-foreground">Long-term holding</span>
-          <span className="block text-xs text-muted-foreground">
-            Marks this purchase as a long-term hold. It gets its own status color while it is held.
-          </span>
-        </span>
-      </label>
 
       <Textarea
         label="Note (optional)"

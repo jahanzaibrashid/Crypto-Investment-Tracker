@@ -22,6 +22,9 @@ export function CoinPicker({ value, onChange, error }: CoinPickerProps) {
   const inputId = useId()
   const listId = useId()
   const [query, setQuery] = useState('')
+  // While the user types, the field shows (and searches) what they type; otherwise it shows the
+  // chosen coin's symbol, so a quick pick like ETH also appears in the field. Nothing is searched for it.
+  const [typing, setTyping] = useState(false)
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const search = useCoinSearch(query)
@@ -33,6 +36,7 @@ export function CoinPicker({ value, onChange, error }: CoinPickerProps) {
   const choose = (coin: CoinRef) => {
     onChange({ id: coin.id, name: coin.name, symbol: coin.symbol.toUpperCase() })
     setQuery('')
+    setTyping(false)
     setOpen(false)
   }
 
@@ -107,14 +111,25 @@ export function CoinPicker({ value, onChange, error }: CoinPickerProps) {
           aria-describedby={error ? `${inputId}-error` : undefined}
           autoComplete="off"
           placeholder="Search other coins (name or symbol)…"
-          value={query}
+          value={typing ? query : (value?.symbol ?? '')}
           onChange={(e) => {
             setQuery(e.target.value)
+            setTyping(true)
             setActive(0)
             setOpen(true)
           }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onFocus={(e) => {
+            e.currentTarget.select() // typing replaces the shown symbol
+            setOpen(true)
+          }}
+          onBlur={() =>
+            setTimeout(() => {
+              setOpen(false)
+              // Left without choosing: show the chosen coin again.
+              setTyping(false)
+              setQuery('')
+            }, 150)
+          }
           onKeyDown={onKeyDown}
           className={cn(controlClass, 'h-9 pl-9', error ? 'border-destructive' : 'border-input-border')}
         />

@@ -12,7 +12,7 @@ import type { ImportLotInput, Investment, InvestmentInput, ProfitStatus, Sale, S
 const PAGE = 1000 // PostgREST default max-rows
 
 const INVESTMENT_COLUMNS =
-  'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, long_term, exchange, target_price::text, target_enabled, profit_status, sort_order, note, created_at, updated_at'
+  'id, coin_id, coin_name, symbol, buy_date, buy_price::text, quantity::text, buy_fee::text, status, exchange, target_price::text, target_enabled, profit_status, sort_order, note, created_at, updated_at'
 const SALE_COLUMNS = 'id, investment_id, sold_date, sold_at, quantity::text, price::text, fee::text, note, created_at'
 
 interface InvestmentRow {
@@ -25,7 +25,6 @@ interface InvestmentRow {
   quantity: string
   buy_fee: string
   status: 'HOLDING' | 'SOLD'
-  long_term: boolean
   exchange: string | null
   target_price: string | null
   target_enabled: boolean
@@ -73,7 +72,6 @@ export function mapInvestment(r: InvestmentRow, sales: Sale[]): Investment {
     quantity: String(r.quantity),
     buyFee: String(r.buy_fee),
     status: r.status,
-    longTerm: Boolean(r.long_term),
     exchange: r.exchange ?? null,
     targetPrice: r.target_price === null || r.target_price === undefined ? null : String(r.target_price),
     targetEnabled: r.target_enabled ?? true,
@@ -132,7 +130,6 @@ function toInvestmentPayload(input: InvestmentInput) {
     buy_price: input.buyPrice,
     quantity: input.quantity,
     buy_fee: input.buyFee || '0',
-    long_term: input.longTerm,
     exchange: input.exchange?.trim() ? input.exchange.trim() : null,
     note: input.note?.trim() ? input.note.trim() : null,
   }
@@ -176,6 +173,23 @@ export async function updateInvestmentProfitStatus(id: string, profitStatus: Pro
   const { data, error } = await getSupabase().from('investments').update({ profit_status: profitStatus }).eq('id', id).select('id')
   if (error) throw mapDbError(error, 'Could not save the profit status.')
   if (!data || data.length === 0) throw mapDbError({ code: 'PGRST116' })
+}
+
+/** Set the profit status of several lots at once (bulk action on selected rows). */
+export async function updateProfitStatusMany(ids: string[], profitStatus: ProfitStatus | null): Promise<void> {
+  if (ids.length === 0) return
+  const { data, error } = await getSupabase().from('investments').update({ profit_status: profitStatus }).in('id', ids).select('id')
+  if (error) throw mapDbError(error, 'Could not save the profit status.')
+  if (!data || data.length === 0) throw mapDbError({ code: 'PGRST116' }) // every row was deleted meanwhile
+}
+
+/** Set where one or more lots are held ("Held on"); null clears it. */
+export async function updateExchangeMany(ids: string[], exchange: string | null): Promise<void> {
+  if (ids.length === 0) return
+  const clean = exchange?.trim() ? exchange.trim() : null
+  const { data, error } = await getSupabase().from('investments').update({ exchange: clean }).in('id', ids).select('id')
+  if (error) throw mapDbError(error, 'Could not save where the coins are held.')
+  if (!data || data.length === 0) throw mapDbError({ code: 'PGRST116' }) // every row was deleted meanwhile
 }
 
 export async function deleteInvestment(id: string): Promise<void> {

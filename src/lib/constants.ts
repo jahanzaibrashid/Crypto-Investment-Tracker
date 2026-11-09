@@ -59,7 +59,7 @@ export const PROFIT_STATUSES = [
 ] as const
 
 /**
- * Exchanges and wallets suggested in the "Bought on" picker. Users can add any other name;
+ * Exchanges and wallets suggested in the "Held on" picker. Users can add any other name;
  * names they have used are suggested too (see features/investments/exchanges.ts).
  */
 export const EXCHANGE_PRESETS = [

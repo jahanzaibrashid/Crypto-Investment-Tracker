@@ -303,13 +303,13 @@ The **Export to Excel** button builds `crypto-portfolio-YYYY-MM-DD.xlsx`. SheetJ
 
 Text that starts with `= + - @`, a tab or a carriage return is prefixed with `'` so it cannot run as a formula. Unavailable prices are written as `Unavailable`, never `0`. Export uses only the signed-in user's RLS-scoped data.
 
-The last two Investments columns, **Long-term** and **Lot ID**, and the **Lot ID** column in Sales History, are there for importing the file back.
+The last Investments column, **Lot ID**, and the **Lot ID** column in Sales History, are there for importing the file back. (Files exported before Long-term was removed still import; their **Long-term** column is ignored.)
 
 ## Excel import
 
 **Import** (next to Export in the header) takes an `.xlsx` in the export format, up to 5 MB and 2000 investments. Nothing is saved until you confirm.
 
-1. **Read and validate.** Columns are matched by header name. Only purchase and sale inputs are read: coin, symbol, CoinGecko ID, buy date, buy price, quantity, fee, note, profit status and long-term from **Investments**, and sale date, quantity, price, fee and note from **Sales History**. Computed columns such as P/L are ignored. Each row is checked with the same rules as the Add and Sell forms.
+1. **Read and validate.** Columns are matched by header name. Only purchase and sale inputs are read: coin, symbol, CoinGecko ID, buy date, buy price, quantity, fee, note, profit status and exchange from **Investments**, and sale date, quantity, price, fee and note from **Sales History**. Computed columns such as P/L are ignored. Each row is checked with the same rules as the Add and Sell forms.
 2. **Preview.** The dialog lists what will be added, what is skipped as a duplicate, and which rows can't be imported, with the reason.
    - **Duplicate:** an investment with the same coin, buy date, price, quantity and fee is already in your portfolio. Matching is one-to-one, so two identical rows in the file against one existing investment import one of them.
    - **Sales** are linked to their purchase by **Lot ID**. Files without that column match by coin and buy date, and ask for a Lot ID when that is ambiguous. If a sale is invalid, its purchase is skipped too, so a position is never saved with the wrong status.
@@ -419,7 +419,7 @@ src/
   lib/            supabase client, env, decimal, formatters, errors, query client
   test/           unit, integration, db (PGlite RLS), e2e (Playwright)
 supabase/
-  migrations/      001 schema, 002 long-term flag, 003 import function, 004–005 saved order
+  migrations/      001 schema, 002 long-term flag (dropped in 019), 003 import function, 004–005 saved order
   functions/coingecko-proxy/index.ts
   seed.sql, config.toml
 ```

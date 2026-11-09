@@ -33,12 +33,16 @@
   --color-warning-text: var(--warning-text);
   --color-info: var(--info);
   --color-info-text: var(--info-text);
-  --color-long-term: var(--long-term);
-  --color-long-term-text: var(--long-term-text);
+  --color-camel: var(--camel);
+  --color-camel-text: var(--camel-text);
   --color-violet: var(--violet);
   --color-violet-text: var(--violet-text);
   --color-pink: var(--pink);
   --color-pink-text: var(--pink-text);
+  --color-teal: var(--teal);
+  --color-teal-text: var(--teal-text);
+  --color-orange: var(--orange);
+  --color-orange-text: var(--orange-text);
   --color-overlay: var(--overlay);
   --shadow-card: var(--elevation-card);
   --shadow-popover: var(--elevation-popover);
@@ -135,18 +139,26 @@
     box-shadow: inset 3px 0 0 var(--row-stripe);
   }
   [data-row-tone]:hover,
-  [data-row-tone]:focus-visible {
+  [data-row-tone]:focus-visible,
+  tr[data-row-tone][data-selected] {
     background-color: var(--row-bg-hover);
+  }
+  /* Selected rows (checkbox column): a wider stripe and a thin primary line on top and bottom. */
+  tr[data-row-tone][data-selected] > td {
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--primary) 45%, transparent),
+      inset 0 -1px 0 color-mix(in oklab, var(--primary) 45%, transparent);
+  }
+  tr[data-row-tone][data-selected] > td:first-child {
+    box-shadow:
+      inset 5px 0 0 var(--row-stripe),
+      inset 0 1px 0 color-mix(in oklab, var(--primary) 45%, transparent),
+      inset 0 -1px 0 color-mix(in oklab, var(--primary) 45%, transparent);
   }
   [data-row-tone='HOLDING'] {
     --row-bg: var(--row-holding);
     --row-bg-hover: var(--row-holding-hover);
     --row-stripe: var(--primary);
-  }
-  [data-row-tone='LONG_TERM'] {
-    --row-bg: var(--row-long-term);
-    --row-bg-hover: var(--row-long-term-hover);
-    --row-stripe: var(--long-term);
   }
   [data-row-tone='SOLD_PROFIT'] {
     --row-bg: var(--row-profit);

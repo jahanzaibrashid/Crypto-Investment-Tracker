@@ -24,7 +24,6 @@ import { positionKind, type LotMetrics, type PositionKind } from './investments.
 /** Each status with its row color (background + left stripe), shown in the Status dropdown as the key for the row colors. */
 const STATUS_OPTIONS: { value: PositionKind; label: string; bg: string; stripe: string }[] = [
   { value: 'HOLDING', label: 'Holding', bg: 'var(--row-holding)', stripe: 'var(--primary)' },
-  { value: 'LONG_TERM', label: 'Long-term', bg: 'var(--row-long-term)', stripe: 'var(--long-term)' },
   { value: 'SOLD_PROFIT', label: 'Sold in profit', bg: 'var(--row-profit)', stripe: 'var(--success)' },
   { value: 'SOLD_LOSS', label: 'Sold in loss', bg: 'var(--row-loss)', stripe: 'var(--destructive)' },
 ]
@@ -67,7 +66,7 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
   const soldRange = soldPeriodRange(value.soldIn)
   // Status choices with their row color and how many investments have each status (across all investments).
   const statusOptions = useMemo(() => {
-    const counts: Record<PositionKind, number> = { HOLDING: 0, LONG_TERM: 0, SOLD_PROFIT: 0, SOLD_LOSS: 0 }
+    const counts: Record<PositionKind, number> = { HOLDING: 0, SOLD_PROFIT: 0, SOLD_LOSS: 0 }
     for (const l of lots) counts[positionKind(l)]++
     return STATUS_OPTIONS.map((o) => ({ value: o.value, label: o.label, swatch: swatch(o.bg, o.stripe), count: counts[o.value] }))
   }, [lots])
@@ -164,7 +163,7 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
           options={periodOptions}
         />
         <Select
-          label="Bought on"
+          label="Held on"
           value={value.exchange}
           active={value.exchange !== ''}
           onChange={(e) => set('exchange', e.target.value)}

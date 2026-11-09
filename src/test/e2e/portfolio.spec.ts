@@ -30,8 +30,8 @@ async function addInvestment(page: Page, symbol: string, price: string, quantity
   await page.getByRole('button', { name: /Add (your first )?investment/i }).first().click()
   const dialog = page.getByRole('dialog', { name: 'Add investment' })
   await dialog.getByRole('button', { name: symbol, exact: true }).click()
-  await dialog.getByLabel('Buy price per coin').fill(price)
-  await dialog.getByLabel('Quantity purchased').fill(quantity)
+  await dialog.getByLabel(`${symbol} Price`, { exact: true }).fill(price)
+  await dialog.getByLabel(`${symbol} Quantity`, { exact: true }).fill(quantity)
   await dialog.getByRole('button', { name: 'Add investment' }).click()
   await expect(dialog).toBeHidden()
 }
@@ -45,8 +45,8 @@ test.describe('portfolio', () => {
     await addInvestment(page, 'BTC', '45000', '0.2') // cost 9,000 → value 10,000
     await addInvestment(page, 'ETH', '2000', '2') // cost 4,000 → value 6,000
     await expect(page.getByTestId('investment-row')).toHaveCount(3)
-    // Column order: #, Coin, Bought, Invested, …, Profit / Loss
-    await expect(page.getByRole('columnheader').nth(2)).toHaveText('Bought')
+    // Column order: row checkbox, #, Coin, Bought, Invested, …, Profit / Loss
+    await expect(page.getByRole('columnheader').nth(3)).toHaveText('Bought')
 
     await goTo(page, 'Overview')
     await expect(page.getByTestId('card-current-value')).toContainText('$41,000.00')

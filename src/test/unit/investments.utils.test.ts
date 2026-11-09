@@ -275,15 +275,14 @@ describe('aggregateByCoin', () => {
 
 describe('positionKind', () => {
   const p = priceLookup({ bitcoin: '100' })
-  it('classifies holding, long-term, sold in profit and sold in loss', () => {
+  it('classifies holding, sold in profit and sold in loss', () => {
     expect(positionKind(computeLot(makeInvestment(), p))).toBe('HOLDING')
-    expect(positionKind(computeLot(makeInvestment({ longTerm: true }), p))).toBe('LONG_TERM')
     expect(positionKind(computeLot(makeInvestment({ sales: [makeSale({ quantity: '1', price: '150' })] }), p))).toBe('SOLD_PROFIT')
     expect(positionKind(computeLot(makeInvestment({ sales: [makeSale({ quantity: '1', price: '50' })] }), p))).toBe('SOLD_LOSS')
   })
   it('treats break-even sales as profit and partial sales as still held', () => {
     expect(positionKind(computeLot(makeInvestment({ sales: [makeSale({ quantity: '1', price: '100' })] }), p))).toBe('SOLD_PROFIT')
-    expect(positionKind(computeLot(makeInvestment({ quantity: '2', longTerm: true, sales: [makeSale({ quantity: '1' })] }), p))).toBe('LONG_TERM')
+    expect(positionKind(computeLot(makeInvestment({ quantity: '2', sales: [makeSale({ quantity: '1' })] }), p))).toBe('HOLDING')
   })
 })
 

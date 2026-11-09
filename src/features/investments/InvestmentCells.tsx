@@ -31,19 +31,7 @@ export function CoinCell({ lot }: { lot: LotMetrics }) {
         <Tooltip text={inv.coinName}>{inv.symbol}</Tooltip>
         <span className="sr-only"> {inv.coinName}</span>
       </div>
-      {/* Where it was bought. Phones: small grey text, so the column stays narrow. ≥ sm: the
-          same look as an "info" Badge. One element, so the name isn't in the row twice. */}
-      {inv.exchange && (
-        <span
-          title={`Bought on ${inv.exchange}`}
-          className={cn(
-            'block max-w-16 truncate text-[11px] leading-tight text-muted-foreground',
-            'sm:mt-1 sm:inline-block sm:max-w-24 sm:rounded-full sm:border sm:border-primary/40 sm:bg-primary/8 sm:px-2 sm:py-0.5 sm:font-medium sm:text-primary-text',
-          )}
-        >
-          {inv.exchange}
-        </span>
-      )}
+      {/* Where the coins are held is shown (and changed) in the Status column. */}
     </div>
   )
 }

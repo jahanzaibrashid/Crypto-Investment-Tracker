@@ -119,16 +119,11 @@ describe('investments RLS', () => {
     )
   })
 
-  it('owner can mark a lot as long-term; other users cannot', async () => {
-    const own = await asUser(db, ALICE, (tx) =>
-      tx.query<{ long_term: boolean }>('update public.investments set long_term = true where id = $1 returning long_term', [aliceLot]),
+  it('has no long-term column any more (019)', async () => {
+    const cols = await db.query<{ column_name: string }>(
+      `select column_name from information_schema.columns where table_schema = 'public' and table_name = 'investments' and column_name = 'long_term'`,
     )
-    expect(own.rows[0]!.long_term).toBe(true)
-    const other = await asUser(db, ALICE, (tx) => tx.query('update public.investments set long_term = true where id = $1', [bobLot]))
-    expect(other.affectedRows).toBe(0)
-    const fresh = await insertLot(BOB)
-    const def = await db.query<{ long_term: boolean }>('select long_term from public.investments where id = $1', [fresh.id])
-    expect(def.rows[0]!.long_term).toBe(false)
+    expect(cols.rows).toEqual([])
   })
 
   it('owner can set and clear the exchange; it is limited to 40 characters', async () => {
@@ -334,7 +329,6 @@ describe('import_investments (bulk import)', () => {
     buy_price: '10',
     quantity: '2',
     buy_fee: '0',
-    long_term: false,
     note: null,
     sales: [],
     ...overrides,
@@ -347,19 +341,19 @@ describe('import_investments (bulk import)', () => {
     )
 
   it("assigns every imported lot and sale to the caller, whatever the file contained", async () => {
-    // A user_id smuggled into the payload is ignored: the function never reads it.
+    // A user_id smuggled into the payload is ignored: the function never reads it. So is an old long_term key.
     const res = await runImport(ALICE, [
       lot('cardano', { user_id: BOB, long_term: true }),
       lot('polkadot', { sales: [{ sold_date: '2024-02-01', quantity: '2', price: '12', fee: '1', note: 'all' }] }),
     ])
     expect(res.rows[0]!.n).toBe(2)
 
-    const rows = await db.query<{ user_id: string; coin_id: string; status: string; long_term: boolean }>(
-      `select user_id, coin_id, status, long_term from public.investments where coin_id in ('cardano', 'polkadot') order by coin_id`,
+    const rows = await db.query<{ user_id: string; coin_id: string; status: string }>(
+      `select user_id, coin_id, status from public.investments where coin_id in ('cardano', 'polkadot') order by coin_id`,
     )
     expect(rows.rows).toEqual([
-      { user_id: ALICE, coin_id: 'cardano', status: 'HOLDING', long_term: true },
-      { user_id: ALICE, coin_id: 'polkadot', status: 'SOLD', long_term: false },
+      { user_id: ALICE, coin_id: 'cardano', status: 'HOLDING' },
+      { user_id: ALICE, coin_id: 'polkadot', status: 'SOLD' },
     ])
     const sales = await db.query<{ user_id: string }>(
       `select s.user_id from public.investment_sales s join public.investments i on i.id = s.investment_id where i.coin_id = 'polkadot'`,

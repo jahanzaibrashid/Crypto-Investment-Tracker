@@ -39,7 +39,6 @@ const COL = {
   profitStatus: 'Profit Status',
   /** Optional: files exported before exchanges were tracked don't have it. */
   exchange: 'Exchange',
-  longTerm: 'Long-term',
   lotId: 'Lot ID',
   saleDate: 'Sale Date',
   saleQuantity: 'Quantity Sold',
@@ -180,15 +179,12 @@ export function parseImportWorkbook(data: ArrayBuffer): ParsedImport {
   const byCoinDate = new Map<string, number[]>()
 
   for (const r of inv.rows) {
-    const status = readText(r.get(COL.status)).toUpperCase()
-    const longTerm = inv.has(COL.longTerm) ? /^(yes|true|1)$/i.test(readText(r.get(COL.longTerm))) : status.startsWith('LONG-TERM')
     const parsed = investmentFormSchema.safeParse({
       coin: { id: readText(r.get(COL.coinId)), name: readText(r.get(COL.coin)), symbol: readText(r.get(COL.symbol)) },
       buyDate: readDate(r.get(COL.buyDate)),
       buyPrice: readDecimal(r.get(COL.buyPrice), LIMITS.priceDecimals),
       quantity: readDecimal(r.get(COL.quantity), LIMITS.quantityDecimals),
       buyFee: readDecimal(r.get(COL.buyFee), LIMITS.priceDecimals),
-      longTerm,
       exchange: inv.has(COL.exchange) ? readText(r.get(COL.exchange)) : '',
       note: readText(r.get(COL.note)),
     })

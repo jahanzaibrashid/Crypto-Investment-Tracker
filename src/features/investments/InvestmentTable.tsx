@@ -1,4 +1,16 @@
-import { createContext, useContext, useMemo, useRef, useState, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SyntheticEvent,
+} from 'react'
 import {
   closestCenter,
   DndContext,
@@ -37,6 +49,7 @@ import { TABLE_PAGE_SIZES } from '@/lib/constants'
 import { ZERO, type Dec } from '@/lib/decimal'
 import { formatAmount, formatDate, formatQuantity, formatUsd } from '@/lib/formatters'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { HoldingAtSelect } from './HoldingAtSelect'
 import { InvestmentActions, type InvestmentAction, type RowMove } from './InvestmentActions'
 import { BoughtCell, CoinCell, CurrentValueCell, InvestedCell, ProfitLossCell, SoldAmountCell, ValueVsInvested } from './InvestmentCells'
 import { PositionStatusBadge } from './PositionStatusBadge'
@@ -77,6 +90,83 @@ function ActionsCell({ lot, onAction }: { lot: LotMetrics; onAction: (a: Investm
   return <InvestmentActions lot={lot} onAction={onAction} move={moveFor(lot.investment.id)} />
 }
 
+/** Row selection (the checkbox column), owned by the page so its bulk bar can act on it. */
+interface RowSelection {
+  isSelected: (id: string) => boolean
+  /** Shift-click selects the range from the last clicked row on this page. */
+  toggle: (id: string, shiftKey: boolean) => void
+  /** Header checkbox: state of the current page's rows, and select / clear them all. */
+  pageState: 'all' | 'some' | 'none'
+  togglePage: () => void
+}
+const SelectionContext = createContext<RowSelection | null>(null)
+
+/** Exchanges and wallets offered in each open row's "Held on" dropdown. */
+const ExchangeOptionsContext = createContext<readonly string[]>([])
+
+/** Native checkbox that can also show the "some selected" (indeterminate) state. */
+function Checkbox({ indeterminate = false, ...props }: InputHTMLAttributes<HTMLInputElement> & { indeterminate?: boolean }) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate
+  }, [indeterminate])
+  return <input ref={ref} type="checkbox" className="h-4 w-4 cursor-pointer accent-primary-solid pointer-coarse:h-5 pointer-coarse:w-5" {...props} />
+}
+
+/** Clicks on the checkbox (or the padding around it) must not open the row's details. */
+const stop = (e: SyntheticEvent) => e.stopPropagation()
+
+function SelectHeader() {
+  const sel = useContext(SelectionContext)
+  if (!sel) return null
+  return (
+    <label className="-m-1 inline-flex cursor-pointer p-1">
+      <Checkbox
+        aria-label={sel.pageState === 'all' ? 'Unselect all rows on this page' : 'Select all rows on this page'}
+        checked={sel.pageState === 'all'}
+        indeterminate={sel.pageState === 'some'}
+        onChange={sel.togglePage}
+      />
+    </label>
+  )
+}
+
+function SelectCell({ lot }: { lot: LotMetrics }) {
+  const sel = useContext(SelectionContext)
+  if (!sel) return null
+  const id = lot.investment.id
+  return (
+    <label
+      className="-m-1 inline-flex cursor-pointer p-1"
+      onClick={stop}
+      // Shift-click would otherwise also highlight the text of the rows in between.
+      onMouseDown={(e) => {
+        if (e.shiftKey) e.preventDefault()
+      }}
+    >
+      <Checkbox
+        aria-label={`Select ${lot.investment.symbol} bought ${formatDate(lot.investment.buyDate)}`}
+        checked={sel.isSelected(id)}
+        onClick={(e) => {
+          e.stopPropagation()
+          sel.toggle(id, e.shiftKey)
+        }}
+        onChange={() => {}} // handled in onClick, which knows about Shift
+        onKeyDown={stop}
+      />
+    </label>
+  )
+}
+
+/**
+ * "Hold status": one item per row. Open lots (bought, not fully sold) get the "Held on" dropdown — where the
+ * coins are; sold lots get their Sold · Profit / Sold · Loss pill.
+ */
+function HoldStatusCell({ lot }: { lot: LotMetrics }) {
+  const options = useContext(ExchangeOptionsContext)
+  return lot.status === 'SOLD' ? <PositionStatusBadge lot={lot} size="lg" /> : <HoldingAtSelect lot={lot} options={options} />
+}
+
 /** Drag only up and down. */
 const verticalOnly: Modifier = ({ transform }) => ({ ...transform, x: 0 })
 
@@ -104,6 +194,7 @@ function DragHandle({ lot }: { lot: LotMetrics }) {
 
 type RowProps = HTMLAttributes<HTMLTableRowElement> & {
   'data-row-tone': string
+  'data-selected'?: string
   'data-testid': string
 }
 
@@ -129,6 +220,11 @@ const n = (d: { toNumber(): number } | null) => (d === null ? undefined : d.toNu
 
 function buildColumns(onAction: (a: InvestmentAction, lot: LotMetrics) => void) {
   return helper.columns([
+    helper.display({
+      id: 'select',
+      header: () => <SelectHeader />,
+      cell: ({ row }) => <SelectCell lot={row.original} />,
+    }),
     helper.display({
       id: 'rowNumber',
       header: '#',
@@ -180,9 +276,9 @@ function buildColumns(onAction: (a: InvestmentAction, lot: LotMetrics) => void) 
     }),
     helper.accessor((l) => l.status, {
       id: 'status',
-      header: 'Status',
+      header: 'Hold status',
       enableSorting: false,
-      cell: ({ row }) => <PositionStatusBadge lot={row.original} size="lg" />,
+      cell: ({ row }) => <HoldStatusCell lot={row.original} />,
     }),
     helper.accessor((l) => l.investment.profitStatus ?? '', {
       id: 'profitStatus',
@@ -211,7 +307,7 @@ function buildColumns(onAction: (a: InvestmentAction, lot: LotMetrics) => void) 
 }
 
 /** Columns as narrow as their content (w-px): the table's spare width goes to the other columns. */
-const SHRINK = new Set(['coin'])
+const SHRINK = new Set(['select', 'coin'])
 /** Numeric columns: kept on one line so figures don't wrap. All columns are left-aligned. */
 const NUMERIC = new Set(['buyDate', 'invested', 'soldAmount', 'currentValue', 'pl'])
 
@@ -249,8 +345,22 @@ function coinTotals(lots: LotMetrics[]) {
   return [...bySymbol].map(([symbol, c]) => ({ symbol, ...c }))
 }
 
-/** Totals for every row currently in the table (all pages, after filters). Stays pinned to the bottom while scrolling. */
-function TotalsRow({ totals, lots, columnIds }: { totals: PortfolioSummary; lots: LotMetrics[]; columnIds: string[] }) {
+/**
+ * Totals for every row currently in the table (all pages, after filters), or only for the selected rows
+ * while any are ticked. Stays pinned to the bottom while scrolling.
+ */
+function TotalsRow({
+  totals,
+  lots,
+  columnIds,
+  selection = false,
+}: {
+  totals: PortfolioSummary
+  lots: LotMetrics[]
+  columnIds: string[]
+  /** The totals cover the selected rows only. */
+  selection?: boolean
+}) {
   const t = totals
   const count = lots.length
   const coins = coinTotals(lots)
@@ -267,7 +377,7 @@ function TotalsRow({ totals, lots, columnIds }: { totals: PortfolioSummary; lots
   const cells: Record<string, ReactNode> = {
     coin: (
       <div>
-        <div className="text-[15px] font-semibold text-foreground">Total</div>
+        <div className={cn('text-[15px] font-semibold', selection ? 'text-primary-text' : 'text-foreground')}>{selection ? 'Selected' : 'Total'}</div>
         <div className="text-[13px] text-muted-foreground">
           {count} row{count === 1 ? '' : 's'}
         </div>
@@ -279,12 +389,12 @@ function TotalsRow({ totals, lots, columnIds }: { totals: PortfolioSummary; lots
           <div key={c.symbol} className="text-[13px] text-muted-foreground">
             {c.held.gt(0) && (
               <div>
-                <span className="text-[15px] font-semibold text-foreground">{formatQuantity(c.held, { maxDecimals: 3 })}</span> {c.symbol} held
+                <span className="text-[15px] font-semibold text-foreground">{formatQuantity(c.held, { maxDecimals: 4 })}</span> {c.symbol} held
               </div>
             )}
             {c.sold.gt(0) && (
               <div>
-                {formatQuantity(c.sold, { maxDecimals: 3 })} {c.symbol} sold
+                {formatQuantity(c.sold, { maxDecimals: 4 })} {c.symbol} sold
               </div>
             )}
           </div>
@@ -349,9 +459,23 @@ interface InvestmentTableProps {
   reordering?: boolean
   /** Shown columns and their order (saved in this browser). */
   columnPrefs: ColumnPrefs
+  /** Ids of the selected rows (checkbox column). */
+  selectedIds: ReadonlySet<string>
+  onSelectionChange: (next: Set<string>) => void
+  /** Exchanges and wallets for the "Held on" dropdowns. */
+  exchangeOptions: readonly string[]
 }
 
-export function InvestmentTable({ lots, onAction, onReorder, reordering = false, columnPrefs }: InvestmentTableProps) {
+export function InvestmentTable({
+  lots,
+  onAction,
+  onReorder,
+  reordering = false,
+  columnPrefs,
+  selectedIds,
+  onSelectionChange,
+  exchangeOptions,
+}: InvestmentTableProps) {
   // Shown columns and their order (the "Columns" menu).
   const columnOrder = useMemo(() => tableColumnOrder(columnPrefs), [columnPrefs])
   const columnVisibility = useMemo(() => tableColumnVisibility(columnPrefs), [columnPrefs])
@@ -396,7 +520,9 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false,
     pageIndex: 0,
     pageSize: 10,
   })
-  const totals = useMemo(() => summarizePortfolio(lots), [lots])
+  // With rows ticked, the totals row adds up only those rows.
+  const totalsLots = useMemo(() => (selectedIds.size > 0 ? lots.filter((l) => selectedIds.has(l.investment.id)) : lots), [lots, selectedIds])
+  const totals = useMemo(() => summarizePortfolio(totalsLots), [totalsLots])
   // `onAction` must be stable (useCallback) so the column model is not rebuilt each render.
   const columns = useMemo(() => buildColumns(onAction), [onAction])
 
@@ -437,6 +563,37 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false,
   // Only open lots are sortable; they always come before sold ones in the saved order.
   const sortableIds = pageRows.filter((r) => r.original.status !== 'SOLD').map((r) => r.id)
 
+  // Checkbox column. Shift-click selects (or clears) the range from the last clicked row on this page.
+  const pageIds = pageRows.map((r) => r.id)
+  const lastClicked = useRef<string | null>(null)
+  const pageSelected = pageIds.filter((id) => selectedIds.has(id)).length
+  const selection: RowSelection = {
+    isSelected: (id) => selectedIds.has(id),
+    toggle: (id, shiftKey) => {
+      const next = new Set(selectedIds)
+      const on = !selectedIds.has(id)
+      const from = lastClicked.current ? pageIds.indexOf(lastClicked.current) : -1
+      const to = pageIds.indexOf(id)
+      const range = shiftKey && from >= 0 && to >= 0 ? pageIds.slice(Math.min(from, to), Math.max(from, to) + 1) : [id]
+      for (const r of range) {
+        if (on) next.add(r)
+        else next.delete(r)
+      }
+      lastClicked.current = id
+      onSelectionChange(next)
+    },
+    pageState: pageSelected === 0 ? 'none' : pageSelected === pageIds.length ? 'all' : 'some',
+    togglePage: () => {
+      const next = new Set(selectedIds)
+      const allOn = pageSelected === pageIds.length
+      for (const id of pageIds) {
+        if (allOn) next.delete(id)
+        else next.add(id)
+      }
+      onSelectionChange(next)
+    },
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -446,129 +603,134 @@ export function InvestmentTable({ lots, onAction, onReorder, reordering = false,
       onDragCancel={() => (lastDragEnd.current = Date.now())}
     >
       <RowMoveContext.Provider value={moveFor}>
-        <div className="flex flex-col">
-          {sortedBy && (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground sm:px-5">
-              <span>
-                Temporarily sorted by <span className="font-medium text-foreground">{sortedBy}</span>. Dragging rows is paused.
-              </span>
-              <button
-                type="button"
-                onClick={() => setSorting([])}
-                className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-primary-text hover:bg-muted"
-              >
-                <ListRestart className="h-3.5 w-3.5" aria-hidden />
-                Back to saved order
-              </button>
-            </div>
-          )}
-          {/* Scrolls inside the card so the header (top) and totals (bottom) stay visible.
-            Same table on every screen size; phones scroll it sideways. */}
-          <div className="max-h-[calc(100dvh-7rem)] min-h-96 overflow-auto">
-            <table className="w-full border-separate border-spacing-0 text-[15px]" aria-label="Investments">
-              <thead>
-                {table.getHeaderGroups().map((group) => (
-                  <tr key={group.id}>
-                    {group.headers.map((header, i) => {
-                      const canSort = header.column.getCanSort()
-                      const sorted = header.column.getIsSorted()
-                      return (
-                        <th
-                          key={header.id}
-                          scope="col"
-                          aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : canSort ? 'none' : undefined}
-                          className={cn(
-                            'sticky top-0 z-10 border-y border-border bg-card text-left align-bottom text-xs leading-tight font-semibold uppercase',
-                            PAD_Y,
-                            padX(i, last),
-                            SHRINK.has(header.column.id) && 'w-px',
-                            sorted ? 'text-foreground' : 'text-muted-foreground',
-                          )}
-                        >
-                          <div className="inline-flex items-end gap-1">
-                            {header.isPlaceholder ? null : canSort ? (
-                              <button
-                                type="button"
-                                onClick={header.column.getToggleSortingHandler()}
-                                className="inline-flex items-end gap-1 rounded text-left uppercase hover:text-foreground"
-                                aria-label={`Sort by ${SORT_LABELS[header.column.id] ?? header.column.id}`}
-                              >
-                                {/* Headers are upper case, except "PnL". */}
-                                <span className={cn('max-w-[5rem]', header.column.id === 'pl' && 'normal-case')}>
-                                  <table.FlexRender header={header} />
-                                </span>
-                                {sorted === 'asc' ? (
-                                  <ArrowUp className="h-3 w-3 shrink-0 text-primary-text" aria-hidden />
-                                ) : sorted === 'desc' ? (
-                                  <ArrowDown className="h-3 w-3 shrink-0 text-primary-text" aria-hidden />
+        <SelectionContext.Provider value={selection}>
+          <ExchangeOptionsContext.Provider value={exchangeOptions}>
+            <div className="flex flex-col">
+              {sortedBy && (
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground sm:px-5">
+                  <span>
+                    Temporarily sorted by <span className="font-medium text-foreground">{sortedBy}</span>. Dragging rows is paused.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSorting([])}
+                    className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-primary-text hover:bg-muted"
+                  >
+                    <ListRestart className="h-3.5 w-3.5" aria-hidden />
+                    Back to saved order
+                  </button>
+                </div>
+              )}
+              {/* Scrolls inside the card so the header (top) and totals (bottom) stay visible.
+                Same table on every screen size; phones scroll it sideways. */}
+              <div className="max-h-[calc(100dvh-7rem)] min-h-96 overflow-auto">
+                <table className="w-full border-separate border-spacing-0 text-[15px]" aria-label="Investments">
+                  <thead>
+                    {table.getHeaderGroups().map((group) => (
+                      <tr key={group.id}>
+                        {group.headers.map((header, i) => {
+                          const canSort = header.column.getCanSort()
+                          const sorted = header.column.getIsSorted()
+                          return (
+                            <th
+                              key={header.id}
+                              scope="col"
+                              aria-sort={sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : canSort ? 'none' : undefined}
+                              className={cn(
+                                'sticky top-0 z-10 border-y border-border bg-card text-left align-bottom text-xs leading-tight font-semibold uppercase',
+                                PAD_Y,
+                                padX(i, last),
+                                SHRINK.has(header.column.id) && 'w-px',
+                                sorted ? 'text-foreground' : 'text-muted-foreground',
+                              )}
+                            >
+                              <div className="inline-flex items-end gap-1">
+                                {header.isPlaceholder ? null : canSort ? (
+                                  <button
+                                    type="button"
+                                    onClick={header.column.getToggleSortingHandler()}
+                                    className="inline-flex items-end gap-1 rounded text-left uppercase hover:text-foreground"
+                                    aria-label={`Sort by ${SORT_LABELS[header.column.id] ?? header.column.id}`}
+                                  >
+                                    {/* Headers are upper case, except "PnL". */}
+                                    <span className={cn('max-w-[5rem]', header.column.id === 'pl' && 'normal-case')}>
+                                      <table.FlexRender header={header} />
+                                    </span>
+                                    {sorted === 'asc' ? (
+                                      <ArrowUp className="h-3 w-3 shrink-0 text-primary-text" aria-hidden />
+                                    ) : sorted === 'desc' ? (
+                                      <ArrowDown className="h-3 w-3 shrink-0 text-primary-text" aria-hidden />
+                                    ) : (
+                                      <ArrowUpDown className="h-3 w-3 shrink-0 opacity-40" aria-hidden />
+                                    )}
+                                  </button>
                                 ) : (
-                                  <ArrowUpDown className="h-3 w-3 shrink-0 opacity-40" aria-hidden />
+                                  <span className="inline-block max-w-[5rem]">
+                                    <table.FlexRender header={header} />
+                                  </span>
                                 )}
-                              </button>
-                            ) : (
-                              <span className="inline-block max-w-[5rem]">
-                                <table.FlexRender header={header} />
-                              </span>
-                            )}
-                          </div>
-                        </th>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="tabular">
-                <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-                  {pageRows.map((row) => {
-                    const lot = row.original
-                    const rowProps: RowProps = {
-                      tabIndex: 0,
-                      title: 'Click to view details',
-                      'aria-label': `${lot.investment.coinName} bought ${formatDate(lot.investment.buyDate)}${lot.investment.exchange ? ` on ${lot.investment.exchange}` : ''} — press Enter to view details`,
-                      onClick: () => {
-                        if (Date.now() - lastDragEnd.current > 300) onAction('view', lot)
-                      },
-                      onKeyDown: (e) => {
-                        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-                          e.preventDefault()
-                          onAction('view', lot)
-                        }
-                      },
-                      'data-row-tone': positionKind(lot),
-                      className: 'group cursor-pointer align-middle transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2',
-                      'data-testid': 'investment-row',
-                    }
-                    const cells = row.getVisibleCells().map((cell, i) => (
-                      <td
-                        key={cell.id}
-                        className={cn(
-                          'border-b border-border text-left',
-                          padX(i, last),
-                          NUMERIC.has(cell.column.id) && 'whitespace-nowrap',
-                          SHRINK.has(cell.column.id) && 'w-px',
-                          cell.column.id === 'actions' ? 'py-0.5 sm:py-1.5' : PAD_Y,
-                        )}
-                      >
-                        <table.FlexRender cell={cell} />
-                      </td>
-                    ))
-                    return lot.status === 'SOLD' ? (
-                      <tr key={row.id} {...rowProps}>
-                        {cells}
+                              </div>
+                            </th>
+                          )
+                        })}
                       </tr>
-                    ) : (
-                      <SortableRow key={row.id} id={row.id} blockedReason={blockedReason} rowProps={rowProps}>
-                        {cells}
-                      </SortableRow>
-                    )
-                  })}
-                </SortableContext>
-              </tbody>
-              <TotalsRow totals={totals} lots={lots} columnIds={columnIds} />
-            </table>
-          </div>
-          {pager}
-        </div>
+                    ))}
+                  </thead>
+                  <tbody className="tabular">
+                    <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+                      {pageRows.map((row) => {
+                        const lot = row.original
+                        const rowProps: RowProps = {
+                          tabIndex: 0,
+                          title: 'Click to view details',
+                          'aria-label': `${lot.investment.coinName} bought ${formatDate(lot.investment.buyDate)}${lot.investment.exchange && lot.status !== 'SOLD' ? `, held on ${lot.investment.exchange}` : ''} — press Enter to view details`,
+                          onClick: () => {
+                            if (Date.now() - lastDragEnd.current > 300) onAction('view', lot)
+                          },
+                          onKeyDown: (e) => {
+                            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault()
+                              onAction('view', lot)
+                            }
+                          },
+                          'data-row-tone': positionKind(lot),
+                          'data-selected': selectedIds.has(row.id) ? '' : undefined,
+                          className: 'group cursor-pointer align-middle transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2',
+                          'data-testid': 'investment-row',
+                        }
+                        const cells = row.getVisibleCells().map((cell, i) => (
+                          <td
+                            key={cell.id}
+                            className={cn(
+                              'border-b border-border text-left',
+                              padX(i, last),
+                              NUMERIC.has(cell.column.id) && 'whitespace-nowrap',
+                              SHRINK.has(cell.column.id) && 'w-px',
+                              cell.column.id === 'actions' ? 'py-0.5 sm:py-1.5' : PAD_Y,
+                            )}
+                          >
+                            <table.FlexRender cell={cell} />
+                          </td>
+                        ))
+                        return lot.status === 'SOLD' ? (
+                          <tr key={row.id} {...rowProps}>
+                            {cells}
+                          </tr>
+                        ) : (
+                          <SortableRow key={row.id} id={row.id} blockedReason={blockedReason} rowProps={rowProps}>
+                            {cells}
+                          </SortableRow>
+                        )
+                      })}
+                    </SortableContext>
+                  </tbody>
+                  <TotalsRow totals={totals} lots={totalsLots} columnIds={columnIds} selection={selectedIds.size > 0} />
+                </table>
+              </div>
+              {pager}
+            </div>
+          </ExchangeOptionsContext.Provider>
+        </SelectionContext.Provider>
       </RowMoveContext.Provider>
     </DndContext>
   )

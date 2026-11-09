@@ -24,6 +24,9 @@ vi.mock('@/features/prices/coingecko.service', async (importOriginal) => {
 })
 
 const rows = () => screen.queryAllByTestId('investment-row')
+/** Add/edit form fields; their labels name the chosen coin ("BTC Quantity", "BTC Price"). */
+const QUANTITY = /^(\S+ )?Quantity$/
+const PRICE = /^(\S+ )?Price$/
 
 async function renderDashboard(route = '/investments') {
   const user = userEvent.setup()
@@ -62,7 +65,7 @@ function stubDownload() {
   return { createObjectURL, click }
 }
 
-type StatusLabel = 'Holding' | 'Long-term' | 'Sold in profit' | 'Sold in loss'
+type StatusLabel = 'Holding' | 'Sold in profit' | 'Sold in loss'
 
 /** Tick or untick one status in the multi-select Status filter (opens it if needed). */
 async function toggleStatus(user: UserEvent, label: StatusLabel) {
@@ -88,8 +91,8 @@ describe('Dashboard', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Add investment' })
     await user.click(within(dialog).getByRole('button', { name: 'BTC' }))
-    await user.type(within(dialog).getByLabelText('Buy price per coin'), '40000')
-    await user.type(within(dialog).getByLabelText('Quantity purchased'), '0.5')
+    await user.type(within(dialog).getByLabelText(PRICE), '40000')
+    await user.type(within(dialog).getByLabelText(QUANTITY), '0.5')
 
     // invested amount updates live
     expect(within(dialog).getByTestId('invested-preview')).toHaveTextContent('$20,000')
@@ -113,15 +116,15 @@ describe('Dashboard', () => {
     expect(screen.getByTestId('card-unrealized')).toHaveTextContent('+$5,000.00')
   })
 
-  it('records where a coin was bought: preset, newly added name, badge and filter', async () => {
+  it('records where a coin is held: preset, newly added name, Held on pill and filter', async () => {
     const { user } = await renderDashboard()
     const add = async (symbol: string, exchangeText: string, pick: string) => {
       await user.click(await screen.findByRole('button', { name: 'Add Investment' })) // page header button
       const dialog = await screen.findByRole('dialog', { name: 'Add investment' })
       await user.click(within(dialog).getByRole('button', { name: symbol }))
-      await user.type(within(dialog).getByLabelText('Buy price per coin'), '100')
-      await user.type(within(dialog).getByLabelText('Quantity purchased'), '1')
-      await user.type(within(dialog).getByRole('combobox', { name: 'Bought on (optional)' }), exchangeText)
+      await user.type(within(dialog).getByLabelText(PRICE), '100')
+      await user.type(within(dialog).getByLabelText(QUANTITY), '1')
+      await user.type(within(dialog).getByRole('combobox', { name: 'Held on (optional)' }), exchangeText)
       await user.click(within(dialog).getByRole('option', { name: pick }))
       await user.click(within(dialog).getByRole('button', { name: 'Add investment' }))
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -133,16 +136,17 @@ describe('Dashboard', () => {
     expect(investmentsServiceMock.createInvestment).toHaveBeenCalledWith(expect.objectContaining({ coinId: 'ethereum', exchange: 'My Wallet' }))
 
     await waitFor(() => expect(rows()).toHaveLength(2))
-    expect(within(rows().find((r) => within(r).queryByText('BTC'))!).getByText('Binance')).toBeInTheDocument()
+    // Shown under the status pill, not under the coin.
+    expect(screen.getByRole('combobox', { name: /^Held on: BTC/ })).toHaveValue('Binance')
 
     // The new name is now suggested like a preset.
     await user.click(screen.getByRole('button', { name: 'Add Investment' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add investment' })
-    await user.click(within(dialog).getByRole('combobox', { name: 'Bought on (optional)' }))
+    await user.click(within(dialog).getByRole('combobox', { name: 'Held on (optional)' }))
     expect(within(dialog).getByRole('option', { name: 'My Wallet' })).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
-    await user.selectOptions(screen.getByLabelText('Bought on'), 'My Wallet')
+    await user.selectOptions(screen.getByLabelText('Held on'), 'My Wallet')
     await waitFor(() => expect(rows()).toHaveLength(1))
     expect(within(rows()[0]!).getByText('ETH')).toBeInTheDocument()
   })
@@ -177,8 +181,38 @@ describe('Dashboard', () => {
       .map((el) => ({ el, label: el.getAttribute('aria-label') ?? dialog.querySelector(`label[for="${el.id}"]`)?.textContent ?? '' }))
       .sort((a, b) => (a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1))
       .map((x) => x.label)
-      .filter((l) => /Quantity|Buy price|Buy date/.test(l))
-    expect(labels).toEqual(['Quantity purchased', 'Buy price per coin', 'Buy date'])
+      .filter((l) => /Quantity|Price|Buy date/.test(l))
+    expect(labels).toEqual(['Quantity', 'Price', 'Buy date'])
+  })
+
+  it('add/edit form: no intro text, a quick pick fills the coin field, and the labels name the coin', async () => {
+    seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
+    const { user } = await renderDashboard()
+    await user.click(await screen.findByRole('button', { name: 'Add Investment' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add investment' })
+    expect(within(dialog).queryByText(/Record a coin purchase/)).not.toBeInTheDocument()
+    const coinField = within(dialog).getByRole('combobox', { name: 'Cryptocurrency' })
+    expect(coinField).toHaveValue('')
+
+    await user.click(within(dialog).getByRole('button', { name: 'ETH' }))
+    expect(coinField).toHaveValue('ETH')
+    expect(within(dialog).getByLabelText('ETH Quantity')).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('ETH Price')).toBeInTheDocument()
+
+    // Typing searches; leaving the field without choosing shows the chosen coin again.
+    await user.click(coinField)
+    await user.keyboard('so')
+    expect(coinField).toHaveValue('so')
+    await user.click(within(dialog).getByLabelText('ETH Quantity'))
+    await waitFor(() => expect(coinField).toHaveValue('ETH'))
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    await rowAction(user, 'Bitcoin', 'Edit')
+    const edit = await screen.findByRole('dialog', { name: 'Edit investment' })
+    expect(within(edit).getByRole('combobox', { name: 'Cryptocurrency' })).toHaveValue('BTC')
+    expect(within(edit).getByLabelText('BTC Quantity')).toHaveValue('1')
+    expect(within(edit).getByLabelText('BTC Price')).toHaveValue('100')
   })
 
   it('shows and accepts the buy date in the short 1-Sep-26 format', async () => {
@@ -189,11 +223,11 @@ describe('Dashboard', () => {
     expect((date as HTMLInputElement).value).toMatch(/^\d{1,2}-[A-Z][a-z]{2}-\d{2}$/) // today, e.g. 16-Oct-26
 
     await user.click(within(dialog).getByRole('button', { name: 'BTC' }))
-    await user.type(within(dialog).getByLabelText('Quantity purchased'), '0.1')
-    await user.type(within(dialog).getByLabelText('Buy price per coin'), '2400')
+    await user.type(within(dialog).getByLabelText(QUANTITY), '0.1')
+    await user.type(within(dialog).getByLabelText(PRICE), '2400')
     await user.clear(date)
     await user.type(date, '1-sep-2026')
-    await user.click(within(dialog).getByLabelText('Quantity purchased')) // leave the field
+    await user.click(within(dialog).getByLabelText(QUANTITY)) // leave the field
     expect(date).toHaveValue('1-Sep-26')
     await user.click(within(dialog).getByRole('button', { name: 'Add investment' }))
     await waitFor(() => expect(investmentsServiceMock.createInvestment).toHaveBeenCalledWith(expect.objectContaining({ buyDate: '2026-09-01' })))
@@ -206,7 +240,7 @@ describe('Dashboard', () => {
     const date = within(dialog).getByLabelText('Buy date')
     await user.clear(date)
     await user.type(date, '31-Feb-26')
-    await user.click(within(dialog).getByLabelText('Quantity purchased')) // leave the field
+    await user.click(within(dialog).getByLabelText(QUANTITY)) // leave the field
     expect(await within(dialog).findByText('Buy date must be a valid date')).toBeInTheDocument()
   })
 
@@ -221,7 +255,7 @@ describe('Dashboard', () => {
     const date = within(dialog).getByLabelText('Buy date')
     await user.clear(date)
     await user.type(date, '20-Sep-26')
-    await user.click(within(dialog).getByLabelText('Quantity purchased'))
+    await user.click(within(dialog).getByLabelText(QUANTITY))
     await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
     expect(await within(dialog).findByText("Buy date can't be after the first sale (18-Sep-26)")).toBeInTheDocument()
     expect(investmentsServiceMock.updateInvestment).not.toHaveBeenCalled()
@@ -231,7 +265,7 @@ describe('Dashboard', () => {
     const { user } = await renderDashboard()
     await user.click(await screen.findByRole('button', { name: 'Add your first investment' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add investment' })
-    await user.type(within(dialog).getByLabelText('Buy price per coin'), '0')
+    await user.type(within(dialog).getByLabelText(PRICE), '0')
     await user.click(within(dialog).getByRole('button', { name: 'Add investment' }))
     expect(await within(dialog).findByText('Select a cryptocurrency')).toBeInTheDocument()
     expect(within(dialog).getByText('Buy price must be greater than zero')).toBeInTheDocument()
@@ -244,7 +278,7 @@ describe('Dashboard', () => {
     const { user } = await renderDashboard()
     await rowAction(user, 'Bitcoin', 'Edit')
     const dialog = await screen.findByRole('dialog', { name: 'Edit investment' })
-    const qty = within(dialog).getByLabelText('Quantity purchased')
+    const qty = within(dialog).getByLabelText(QUANTITY)
     expect(qty).toHaveValue('1')
     await user.clear(qty)
     await user.type(qty, '2')
@@ -311,8 +345,10 @@ describe('Dashboard', () => {
     await user.type(within(dialog).getByLabelText('Sale price per coin'), '120')
     await user.click(within(dialog).getByRole('button', { name: 'Record partial sale' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(await screen.findByText('Partial sale')).toBeInTheDocument()
-    expect(screen.getByText('6 left')).toBeInTheDocument()
+    // Still open, so the Hold status column shows where it is held (no status pill); the rest shows under Bought.
+    expect(await screen.findByText('6 left')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /^Held on: SOL/ })).toBeInTheDocument()
+    expect(screen.queryByText('Partial sale')).not.toBeInTheDocument()
     await goTo(user, 'Overview')
     // realized (4×120 − 400) = 80; unrealized 6×150 − 600 = 300
     expect(screen.getByTestId('card-realized')).toHaveTextContent('+$80.00')
@@ -403,7 +439,8 @@ describe('Dashboard', () => {
     await renderDashboard()
     await waitFor(() => expect(rows()).toHaveLength(1))
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
-    expect(headers.slice(0, 9)).toEqual(['#', 'Coin', 'Bought', 'Buy at', 'Current', 'Sold at', 'PnL', 'Status', 'PSProfit status'])
+    // The first column is the row checkbox (no header text, just a checkbox).
+    expect(headers.slice(0, 10)).toEqual(['', '#', 'Coin', 'Bought', 'Buy at', 'Current', 'Sold at', 'PnL', 'Hold status', 'PSProfit status'])
   })
 
   it('has separate Overview, Holdings, Investments and Notes pages with the active page highlighted', async () => {
@@ -427,9 +464,9 @@ describe('Dashboard', () => {
     expect(rows()).toHaveLength(0)
   })
 
-  it('colors rows by status: holding, long-term, sold in profit, sold in loss', async () => {
+  it('colors rows by status: holding, sold in profit, sold in loss; Hold status shows one item per row', async () => {
     seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', buyDate: '2024-01-04' })
-    seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', longTerm: true, buyDate: '2024-01-03' })
+    seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', buyDate: '2024-01-03' })
     seedInvestment({
       coinId: 'solana', coinName: 'Solana', symbol: 'SOL', buyPrice: '100', buyDate: '2024-01-02',
       sales: [{ id: 'a', investmentId: 'x', soldDate: '2024-02-01', quantity: '1', price: '120', fee: '0', note: null, soldAt: '', createdAt: '' }],
@@ -441,35 +478,44 @@ describe('Dashboard', () => {
     const { user } = await renderDashboard()
     await waitFor(() => expect(rows()).toHaveLength(4))
     const byCoin = (name: string) => rows().find((r) => within(r).queryByText(name))!
-    expect(byCoin('Bitcoin')).toHaveAttribute('data-row-tone', 'HOLDING')
-    expect(within(byCoin('Bitcoin')).getByText('Holding')).toBeInTheDocument()
-    expect(byCoin('Ethereum')).toHaveAttribute('data-row-tone', 'LONG_TERM')
-    expect(within(byCoin('Ethereum')).getByText('Long-term')).toBeInTheDocument()
+    const holdStatus = (name: string) => {
+      const headers = screen.getAllByRole('columnheader').map((h) => h.textContent?.trim())
+      return within(byCoin(name)).getAllByRole('cell')[headers.indexOf('Hold status')]!
+    }
+    // Open lots: only the "Held on" dropdown, no "Holding" pill.
+    for (const coin of ['Bitcoin', 'Ethereum']) {
+      expect(byCoin(coin)).toHaveAttribute('data-row-tone', 'HOLDING')
+      expect(within(holdStatus(coin)).getByRole('combobox', { name: /^Held on:/ })).toBeInTheDocument()
+      expect(within(holdStatus(coin)).queryByText('Holding')).not.toBeInTheDocument()
+    }
+    // Sold lots: only their Sold pill, no dropdown.
     expect(byCoin('Solana')).toHaveAttribute('data-row-tone', 'SOLD_PROFIT')
-    expect(within(byCoin('Solana')).getByText('Sold · Profit')).toBeInTheDocument()
+    expect(holdStatus('Solana')).toHaveTextContent(/^Sold · Profit$/)
+    expect(within(holdStatus('Solana')).queryByRole('combobox')).not.toBeInTheDocument()
     expect(byCoin('Dogecoin')).toHaveAttribute('data-row-tone', 'SOLD_LOSS')
-    expect(within(byCoin('Dogecoin')).getByText('Sold · Loss')).toBeInTheDocument()
+    expect(holdStatus('Dogecoin')).toHaveTextContent(/^Sold · Loss$/)
 
     await toggleStatus(user, 'Sold in loss')
     await waitFor(() => expect(rows()).toHaveLength(1))
     expect(within(rows()[0]!).getByText('Dogecoin')).toBeInTheDocument()
-    await toggleStatus(user, 'Long-term')
-    await waitFor(() => expect(rows()).toHaveLength(2))
+    await toggleStatus(user, 'Holding')
+    await waitFor(() => expect(rows()).toHaveLength(3))
     await toggleStatus(user, 'Sold in loss')
-    await waitFor(() => expect(rows()).toHaveLength(1))
-    expect(within(rows()[0]!).getByText('Ethereum')).toBeInTheDocument()
+    await waitFor(() => expect(rows()).toHaveLength(2))
   })
 
-  it('marks a purchase as long-term from the form', async () => {
+  it('has no long-term option: the add/edit form has no Long-term checkbox and the Status filter has three statuses', async () => {
     seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
     const { user } = await renderDashboard()
     await rowAction(user, 'Bitcoin', 'Edit')
     const dialog = await screen.findByRole('dialog', { name: 'Edit investment' })
-    await user.click(within(dialog).getByRole('checkbox', { name: /Long-term holding/ }))
-    await user.click(within(dialog).getByRole('button', { name: 'Save changes' }))
+    expect(within(dialog).queryByText(/long-term/i)).not.toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(investmentsServiceMock.updateInvestment).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ longTerm: true }))
-    await waitFor(() => expect(rows()[0]).toHaveAttribute('data-row-tone', 'LONG_TERM'))
+
+    await user.click(screen.getByLabelText('Status'))
+    expect(screen.getAllByRole('checkbox', { name: /^(Holding|Sold in profit|Sold in loss)\D*\d+$/ })).toHaveLength(3)
+    expect(screen.queryByRole('checkbox', { name: /^Long-term/ })).not.toBeInTheDocument()
   })
 
   it('opens position details by clicking anywhere on a row (no separate view button)', async () => {
@@ -496,7 +542,7 @@ describe('Dashboard', () => {
 
   it('shows each status with its count in the Status filter, which filters the table', async () => {
     seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
-    seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', longTerm: true })
+    seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH' })
     seedInvestment({
       coinId: 'solana', coinName: 'Solana', symbol: 'SOL', buyPrice: '100',
       sales: [{ id: 'a', investmentId: 'x', soldDate: '2024-02-01', quantity: '1', price: '120', fee: '0', note: null, soldAt: '', createdAt: '' }],
@@ -504,19 +550,18 @@ describe('Dashboard', () => {
     const { user } = await renderDashboard()
     await waitFor(() => expect(rows()).toHaveLength(3))
     await user.click(screen.getByLabelText('Status'))
-    expect(screen.getByRole('checkbox', { name: /^Holding\D*1$/ })).toBeInTheDocument()
-    expect(screen.getByRole('checkbox', { name: /^Long-term\D*1$/ })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /^Holding\D*2$/ })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: /^Sold in profit\D*1$/ })).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: /^Sold in loss\D*0$/ })).toBeInTheDocument()
 
-    await toggleStatus(user, 'Long-term')
+    await toggleStatus(user, 'Sold in profit')
     await waitFor(() => expect(rows()).toHaveLength(1))
-    expect(screen.getByLabelText('Status')).toHaveTextContent('Long-term')
-    await toggleStatus(user, 'Sold in profit')
-    await waitFor(() => expect(rows()).toHaveLength(2))
-    expect(screen.getByLabelText('Status')).toHaveTextContent('Long-term,Sold in profit')
-    await toggleStatus(user, 'Sold in profit')
-    await toggleStatus(user, 'Long-term') // both off again → all rows
+    expect(screen.getByLabelText('Status')).toHaveTextContent('Sold in profit')
+    await toggleStatus(user, 'Holding')
+    await waitFor(() => expect(rows()).toHaveLength(3))
+    expect(screen.getByLabelText('Status')).toHaveTextContent('Holding,Sold in profit')
+    await toggleStatus(user, 'Holding')
+    await toggleStatus(user, 'Sold in profit') // both off again → all rows
     await waitFor(() => expect(rows()).toHaveLength(3))
   })
 
@@ -828,8 +873,7 @@ describe('Dashboard', () => {
         buyPrice: '2000',
         quantity: '2',
         buyFee: '5',
-        longTerm: true,
-        exchange: null, // the workbook has no Exchange column
+        exchange: null, // the workbook has no Exchange column; its old Long-term column is ignored
         profitStatus: null,
         note: 'from exchange',
         sales: [{ soldDate: '2024-03-01', quantity: '0.5', price: '2500', fee: '0', note: null }],
@@ -906,6 +950,137 @@ describe('Dashboard', () => {
     })
     await renderDashboard()
     expect(await screen.findByRole('combobox', { name: /^Profit status: ETH/ })).toHaveValue('')
+  })
+
+  describe('Held on pill and row selection', () => {
+    const soldAt = (id: string, price: string) => [{ id, investmentId: 'x', soldDate: '2024-03-01', quantity: '1', price, fee: '0', note: null, soldAt: '', createdAt: '' }]
+    const bulkBar = () => screen.queryByRole('region', { name: 'Bulk actions for selected rows' })
+    const rowCheckbox = (i: number) => within(rows()[i]!).getByRole('checkbox')
+
+    it('changes where an open lot is held from the pill under its status; sold lots have no pill', async () => {
+      const btc = seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', exchange: 'Binance' })
+      seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', exchange: 'Binance', sales: soldAt('a', '150') })
+      const { user } = await renderDashboard()
+      await waitFor(() => expect(rows()).toHaveLength(2))
+
+      expect(screen.getAllByRole('combobox', { name: /^Held on:/ })).toHaveLength(1)
+      const pill = screen.getByRole('combobox', { name: /^Held on: BTC/ })
+      expect(pill).toHaveValue('Binance')
+      await user.selectOptions(pill, 'MetaMask BSC')
+      await waitFor(() => expect(investmentsServiceMock.updateExchangeMany).toHaveBeenCalledWith([btc.id], 'MetaMask BSC'))
+      await waitFor(() => expect(screen.getByRole('combobox', { name: /^Held on: BTC/ })).toHaveValue('MetaMask BSC'))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument() // did not open the row's details
+    })
+
+    it('moves the selected open rows to another wallet in one go, then clears the selection', async () => {
+      const btc = seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', exchange: 'Binance' })
+      seedInvestment({ coinId: 'solana', coinName: 'Solana', symbol: 'SOL', exchange: 'Binance' })
+      seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', sales: soldAt('a', '150') })
+      const { user } = await renderDashboard()
+      await waitFor(() => expect(rows()).toHaveLength(3))
+      expect(bulkBar()).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('checkbox', { name: /^Select BTC/ }))
+      await user.click(screen.getByRole('checkbox', { name: /^Select ETH/ }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument() // ticking a row does not open its details
+      const bar = bulkBar()!
+      expect(bar).toHaveTextContent('2 selected')
+      expect(rows().filter((r) => r.hasAttribute('data-selected'))).toHaveLength(2)
+
+      // Only the open row (BTC) is moved; the sold ETH row has no "Held on".
+      await user.selectOptions(within(bar).getByRole('combobox', { name: /^Held on/ }), 'MetaMask BSC')
+      await waitFor(() => expect(investmentsServiceMock.updateExchangeMany).toHaveBeenCalledWith([btc.id], 'MetaMask BSC'))
+      expect(await screen.findByText('Moved 1 row to MetaMask BSC.')).toBeInTheDocument()
+      await waitFor(() => expect(screen.getByRole('combobox', { name: /^Held on: BTC/ })).toHaveValue('MetaMask BSC'))
+      expect(screen.getByRole('combobox', { name: /^Held on: SOL/ })).toHaveValue('Binance')
+      expect(bulkBar()).not.toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: /^Select BTC/ })).not.toBeChecked()
+    })
+
+    it('sets the profit status on every selected row sold at a profit', async () => {
+      seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
+      const eth = seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', sales: soldAt('a', '150') })
+      const xrp = seedInvestment({ coinId: 'ripple', coinName: 'XRP', symbol: 'XRP', sales: soldAt('b', '150') })
+      seedInvestment({ coinId: 'solana', coinName: 'Solana', symbol: 'SOL', sales: soldAt('c', '50') }) // sold at a loss
+      const { user } = await renderDashboard()
+      await waitFor(() => expect(rows()).toHaveLength(4))
+
+      await user.click(screen.getByRole('checkbox', { name: 'Select all rows on this page' }))
+      const bar = bulkBar()!
+      expect(bar).toHaveTextContent('4 selected')
+      await user.selectOptions(within(bar).getByRole('combobox', { name: /^Profit status/ }), 'BINANCE_FUNDING')
+      await waitFor(() => expect(investmentsServiceMock.updateProfitStatusMany).toHaveBeenCalledTimes(1))
+      const [ids, status] = investmentsServiceMock.updateProfitStatusMany.mock.calls[0]!
+      expect([...ids].sort()).toEqual([eth.id, xrp.id].sort())
+      expect(status).toBe('BINANCE_FUNDING')
+      await waitFor(() => expect(screen.getByRole('combobox', { name: /^Profit status: ETH/ })).toHaveValue('BINANCE_FUNDING'))
+      expect(screen.getByRole('combobox', { name: /^Profit status: XRP/ })).toHaveValue('BINANCE_FUNDING')
+    })
+
+    it('selects a range with Shift, the whole page from the header, every row with "Select all", and clears with Esc', async () => {
+      for (let i = 0; i < 12; i++) seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
+      const { user } = await renderDashboard()
+      await waitFor(() => expect(rows()).toHaveLength(10)) // page size 10
+      const header = screen.getByRole('checkbox', { name: /rows on this page$/ })
+
+      await user.click(rowCheckbox(0))
+      expect(header).toBePartiallyChecked()
+      await user.keyboard('{Shift>}')
+      await user.click(rowCheckbox(2))
+      await user.keyboard('{/Shift}')
+      expect(bulkBar()).toHaveTextContent('3 selected')
+      expect(rowCheckbox(1)).toBeChecked()
+
+      await user.click(header)
+      expect(bulkBar()).toHaveTextContent('10 selected')
+      expect(header).toBeChecked()
+      await user.click(within(bulkBar()!).getByRole('button', { name: 'Select all 12' }))
+      expect(bulkBar()).toHaveTextContent('12 selected')
+
+      await user.keyboard('{Escape}')
+      expect(bulkBar()).not.toBeInTheDocument()
+      expect(header).not.toBeChecked()
+    })
+
+    it('drops selected rows that a filter hides, so bulk actions never touch hidden rows', async () => {
+      seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC' })
+      seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', sales: soldAt('a', '150') })
+      const { user } = await renderDashboard()
+      await waitFor(() => expect(rows()).toHaveLength(2))
+      await user.click(screen.getByRole('checkbox', { name: 'Select all rows on this page' }))
+      expect(bulkBar()).toHaveTextContent('2 selected')
+
+      await toggleStatus(user, 'Sold in profit')
+      await waitFor(() => expect(rows()).toHaveLength(1))
+      expect(bulkBar()).toHaveTextContent('1 selected')
+      // The open BTC row is gone, so there is nothing to move.
+      expect(within(bulkBar()!).getByRole('combobox', { name: /^Held on/ })).toBeDisabled()
+    })
+
+    it('totals only the selected rows while any are ticked', async () => {
+      seedInvestment({ coinId: 'bitcoin', coinName: 'Bitcoin', symbol: 'BTC', buyPrice: '30000' })
+      seedInvestment({ coinId: 'solana', coinName: 'Solana', symbol: 'SOL', sales: soldAt('a', '120') }) // +20
+      const { user } = await renderDashboard()
+      await waitFor(() => expect(rows()).toHaveLength(2))
+      const cell = (id: string) => screen.getByTestId('totals-row').querySelector(`[data-column="${id}"]`)!
+      expect(cell('coin')).toHaveTextContent('Total2 rows')
+
+      await user.click(screen.getByRole('checkbox', { name: /^Select SOL/ }))
+      expect(cell('coin')).toHaveTextContent('Selected1 row')
+      expect(cell('invested')).toHaveTextContent('$100')
+      expect(cell('pl')).toHaveTextContent('+$20')
+
+      await user.click(screen.getByRole('checkbox', { name: /^Select SOL/ }))
+      expect(cell('coin')).toHaveTextContent('Total2 rows')
+      expect(cell('invested')).toHaveTextContent('$30,100')
+    })
+
+    it('shows coin amounts in the totals row to 4 decimals', async () => {
+      seedInvestment({ coinId: 'ethereum', coinName: 'Ethereum', symbol: 'ETH', quantity: '1.23456789' })
+      await renderDashboard()
+      await waitFor(() => expect(rows()).toHaveLength(1))
+      expect(screen.getByTestId('totals-row').querySelector('[data-column="buyDate"]')).toHaveTextContent('1.2345 ETH held')
+    })
   })
 
   it('explains why a file cannot be imported', async () => {

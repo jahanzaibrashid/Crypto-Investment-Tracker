@@ -26,7 +26,7 @@ const FMT = {
 
 const UNAVAILABLE = 'Unavailable'
 
-const STATUS_TEXT = { HOLDING: 'HOLDING', LONG_TERM: 'LONG-TERM HOLDING', SOLD_PROFIT: 'SOLD (PROFIT)', SOLD_LOSS: 'SOLD (LOSS)' } as const
+const STATUS_TEXT = { HOLDING: 'HOLDING', SOLD_PROFIT: 'SOLD (PROFIT)', SOLD_LOSS: 'SOLD (LOSS)' } as const
 
 /**
  * Neutralize strings that a spreadsheet could interpret as a formula
@@ -99,8 +99,7 @@ export const INVESTMENT_HEADERS = [
   'Note',
   'Profit Status',
   'Exchange',
-  // Used by Import: the long-term flag, and a key that links rows in Sales History to their lot.
-  'Long-term',
+  // Used by Import: a key that links rows in Sales History to their lot.
   'Lot ID',
 ] as const
 
@@ -161,7 +160,6 @@ function investmentRow(lot: LotMetrics): Cell[] {
     text(inv.note),
     text(profitStatusLabel(lot)),
     text(inv.exchange),
-    text(inv.longTerm ? 'Yes' : 'No'),
     text(inv.id),
   ]
 }

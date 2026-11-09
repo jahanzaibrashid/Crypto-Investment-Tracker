@@ -31,9 +31,9 @@ const INV_HEADER = ['Coin', 'Symbol', 'CoinGecko ID', 'Buy Date', 'Buy Price (US
 const SALE_HEADER = ['CoinGecko ID', 'Buy Date', 'Sale Date', 'Quantity Sold', 'Sale Price (USD)', 'Sale Fee (USD)']
 
 describe('parseImportWorkbook', () => {
-  it('round-trips an export: purchases, fees, notes, long-term flag, exchange and sales', () => {
+  it('round-trips an export: purchases, fees, notes, exchange and sales', () => {
     const data = exported([
-      makeInvestment({ id: 'a', quantity: '2', buyPrice: '100', buyFee: '10', note: '=SUM(A1)', longTerm: true, exchange: 'Binance', profitStatus: 'BINANCE_FUNDING' }),
+      makeInvestment({ id: 'a', quantity: '2', buyPrice: '100', buyFee: '10', note: '=SUM(A1)', exchange: 'Binance', profitStatus: 'BINANCE_FUNDING' }),
       makeInvestment({
         id: 'b',
         coinId: 'ethereum',
@@ -57,7 +57,6 @@ describe('parseImportWorkbook', () => {
         buyPrice: '100',
         quantity: '2',
         buyFee: '10',
-        longTerm: true,
         exchange: 'Binance',
         profitStatus: 'BINANCE_FUNDING',
         note: '=SUM(A1)', // the export's formula guard is removed again
@@ -71,7 +70,6 @@ describe('parseImportWorkbook', () => {
         buyPrice: '2500.25',
         quantity: '1.5',
         buyFee: '0',
-        longTerm: false,
         exchange: null,
         profitStatus: null,
         note: null,
@@ -158,7 +156,7 @@ describe('splitDuplicates', () => {
       const inv = makeInvestment(r)
       return {
         row: i + 2,
-        lot: { coinId: inv.coinId, coinName: inv.coinName, symbol: inv.symbol, buyDate: inv.buyDate, buyPrice: inv.buyPrice, quantity: inv.quantity, buyFee: inv.buyFee, longTerm: false, exchange: null, profitStatus: null, note: null, sales: [] },
+        lot: { coinId: inv.coinId, coinName: inv.coinName, symbol: inv.symbol, buyDate: inv.buyDate, buyPrice: inv.buyPrice, quantity: inv.quantity, buyFee: inv.buyFee, exchange: null, profitStatus: null, note: null, sales: [] },
       }
     })
 

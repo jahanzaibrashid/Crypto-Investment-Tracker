@@ -19,7 +19,7 @@ interface ExchangePickerProps {
 type Item = { kind: 'option'; name: string } | { kind: 'add'; name: string }
 
 /**
- * "Bought on" field: pick an exchange/wallet from the list, or type a new name and choose
+ * "Held on" field (where the coins are now): pick an exchange/wallet from the list, or type a new name and choose
  * "Add …" (or just leave the field). Matching ignores case, so a typed "binance" becomes "Binance".
  */
 export function ExchangePicker({ value, onChange, onBlur, options, error }: ExchangePickerProps) {
@@ -71,7 +71,7 @@ export function ExchangePicker({ value, onChange, onBlur, options, error }: Exch
   const showList = open && items.length > 0
 
   return (
-    <FieldShell id={inputId} label="Bought on (optional)" error={error} hint="Exchange or wallet, e.g. Binance or MetaMask. Type to add a new one.">
+    <FieldShell id={inputId} label="Held on (optional)" error={error} hint="Exchange or wallet, e.g. Binance or MetaMask. Type to add a new one.">
       <div className="relative">
         <input
           id={inputId}

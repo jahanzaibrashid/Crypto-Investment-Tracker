@@ -45,12 +45,12 @@ function pairs(t: Record<string, string>): Pair[] {
   for (const s of [...surfaces, 'muted']) p.push(['foreground', s, 7])
   for (const s of surfaces) {
     p.push(['muted-foreground', s, 4.5])
-    for (const text of ['primary-text', 'success-text', 'destructive-text', 'warning-text', 'info-text', 'long-term-text']) p.push([text, s, 4.5])
+    for (const text of ['primary-text', 'success-text', 'destructive-text', 'warning-text', 'info-text', 'camel-text', 'violet-text', 'pink-text', 'teal-text', 'orange-text']) p.push([text, s, 4.5])
   }
   p.push(['primary-foreground', 'primary-solid', 4.5], ['primary-foreground', 'primary-solid-hover', 4.5])
   p.push(['primary-foreground', 'destructive-solid', 4.5], ['primary-foreground', 'destructive-solid-hover', 4.5])
   for (const s of ['input', 'card', 'background']) p.push(['input-border', s, 3], ['ring', s, 3])
-  for (const icon of ['success', 'destructive', 'warning', 'info', 'primary', 'long-term']) p.push([icon, 'card', 3])
+  for (const icon of ['success', 'destructive', 'warning', 'info', 'primary', 'camel']) p.push([icon, 'card', 3])
   void t
   return p
 }
@@ -77,15 +77,15 @@ describe.each(Object.entries(THEMES))('%s theme contrast', (name, t) => {
 
   // Status-tinted table rows (and their hover shade). Inside them, secondary text and
   // profit/loss text use the --row-* overrides (see [data-row-tone] in index.css).
-  const ROWS = ['row-holding', 'row-long-term', 'row-profit', 'row-loss'].flatMap((r) => [r, `${r}-hover`])
+  const ROWS = ['row-holding', 'row-profit', 'row-loss'].flatMap((r) => [r, `${r}-hover`])
   it.each(ROWS)(`${name}: text on --%s is readable`, (row) => {
     const bg = t[row]!
     expect(contrast(t.foreground!, bg)).toBeGreaterThanOrEqual(7)
-    for (const text of ['row-muted-foreground', 'row-success-text', 'row-destructive-text', 'primary-text', 'long-term-text', 'row-warning-text']) {
+    for (const text of ['row-muted-foreground', 'row-success-text', 'row-destructive-text', 'primary-text', 'camel-text', 'row-warning-text']) {
       expect(contrast(t[text]!, bg), `--${text} on --${row}`).toBeGreaterThanOrEqual(4.5)
     }
     // Status badges sit on the row tint with their own 8% tint.
-    const badges: [string, string][] = [['row-success-text', 'success'], ['row-destructive-text', 'destructive'], ['primary-text', 'primary'], ['long-term-text', 'long-term'], ['row-warning-text', 'warning']]
+    const badges: [string, string][] = [['row-success-text', 'success'], ['row-destructive-text', 'destructive'], ['primary-text', 'primary'], ['camel-text', 'camel'], ['row-warning-text', 'warning'], ['violet-text', 'violet'], ['pink-text', 'pink'], ['teal-text', 'teal'], ['orange-text', 'orange']]
     for (const [text, tint] of badges) {
       expect(contrast(t[text]!, blend(t[tint]!, 0.08, bg)), `badge --${text} on --${row}`).toBeGreaterThanOrEqual(4.5)
     }

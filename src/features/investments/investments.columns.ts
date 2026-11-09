@@ -2,7 +2,7 @@
  * Which Investments-table columns are shown, and in what order. Saved in this browser (localStorage),
  * per user, so each device keeps its own layout.
  *
- * Fixed columns stay where they are and can't be hidden: "#" (row number + drag grip) and Coin at the
+ * Fixed columns stay where they are and can't be hidden: the row checkbox, "#" (row number + drag grip) and Coin at the
  * start, the actions menu at the end. Everything in between can be hidden and reordered.
  */
 import { useCallback, useState } from 'react'
@@ -15,7 +15,7 @@ export const MOVABLE_COLUMNS = [
   { id: 'currentValue', label: 'Current' },
   { id: 'soldAmount', label: 'Sold at' },
   { id: 'pl', label: 'PnL' },
-  { id: 'status', label: 'Status' },
+  { id: 'status', label: 'Hold status' },
   { id: 'profitStatus', label: 'Profit status (PS)' },
 ] as const
 
@@ -25,7 +25,7 @@ const DEFAULT_ORDER: MovableColumnId[] = MOVABLE_COLUMNS.map((c) => c.id)
 const KNOWN = new Set<string>(DEFAULT_ORDER)
 
 /** Fixed columns before and after the movable ones. */
-export const LEADING_COLUMNS = ['rowNumber', 'coin'] as const
+export const LEADING_COLUMNS = ['select', 'rowNumber', 'coin'] as const
 export const TRAILING_COLUMNS = ['actions'] as const
 
 export interface ColumnPrefs {

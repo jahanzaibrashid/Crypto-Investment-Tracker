@@ -14,7 +14,7 @@ interface InvestmentDialogProps {
   onClose: () => void
   /** When provided the dialog edits this lot. */
   lot?: LotMetrics | null
-  /** Suggestions for "Bought on" (exchangeOptions of all investments). */
+  /** Suggestions for "Held on" (exchangeOptions of all investments). */
   exchangeOptions: string[]
 }
 
@@ -55,7 +55,7 @@ export function InvestmentDialog({ open, onClose, lot, exchangeOptions }: Invest
       description={
         editing
           ? `${editing.coinName} (${editing.symbol}): ${formatQuantity(editing.quantity)} ${editing.symbol} bought on ${formatDate(editing.buyDate)}.`
-          : 'Record a coin purchase. Prices are in USD.'
+          : undefined
       }
       size="lg"
     >

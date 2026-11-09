@@ -196,7 +196,6 @@ export interface PortfolioSummary {
 
   lotCount: number
   openLotCount: number
-  longTermLotCount: number
   soldLotCount: number
   partiallySoldLotCount: number
   coinsHeld: number
@@ -225,7 +224,6 @@ export function summarizePortfolio(lots: LotMetrics[]): PortfolioSummary {
   const stale = new Set<string>()
   const held = new Set<string>()
   let openLotCount = 0
-  let longTermLotCount = 0
   let partiallySold = 0
 
   for (const lot of lots) {
@@ -238,7 +236,6 @@ export function summarizePortfolio(lots: LotMetrics[]): PortfolioSummary {
 
     if (lot.status === 'HOLDING') {
       openLotCount++
-      if (lot.investment.longTerm) longTermLotCount++
       held.add(lot.investment.coinId)
       remainingCostBasis = remainingCostBasis.plus(lot.remainingCostBasis)
       if (lot.currentValue !== null && lot.unrealizedPL !== null) {
@@ -272,7 +269,6 @@ export function summarizePortfolio(lots: LotMetrics[]): PortfolioSummary {
     realizedROI: roiPercent(realized, soldCostBasis),
     lotCount: lots.length,
     openLotCount,
-    longTermLotCount,
     soldLotCount: lots.length - openLotCount,
     partiallySoldLotCount: partiallySold,
     coinsHeld: held.size,
@@ -346,22 +342,20 @@ export function aggregateByCoin(lots: LotMetrics[], totalValue: Dec): CoinPositi
 }
 
 /**
- * The four display statuses (each has its own color):
- *   HOLDING      open position
- *   LONG_TERM    open position the user marked as a long-term holding
+ * The three display statuses (each has its own color):
+ *   HOLDING      open position (fully or partly unsold)
  *   SOLD_PROFIT  fully sold with realized P/L ≥ 0 (break-even counts as profit)
  *   SOLD_LOSS    fully sold with realized P/L < 0
  */
-export type PositionKind = 'HOLDING' | 'LONG_TERM' | 'SOLD_PROFIT' | 'SOLD_LOSS'
+export type PositionKind = 'HOLDING' | 'SOLD_PROFIT' | 'SOLD_LOSS'
 
 export function positionKind(lot: LotMetrics): PositionKind {
   if (lot.status === 'SOLD') return lot.realizedPL.gte(0) ? 'SOLD_PROFIT' : 'SOLD_LOSS'
-  return lot.investment.longTerm ? 'LONG_TERM' : 'HOLDING'
+  return 'HOLDING'
 }
 
 export const POSITION_KIND_LABEL: Record<PositionKind, string> = {
   HOLDING: 'Holding',
-  LONG_TERM: 'Long-term',
   SOLD_PROFIT: 'Sold · Profit',
   SOLD_LOSS: 'Sold · Loss',
 }

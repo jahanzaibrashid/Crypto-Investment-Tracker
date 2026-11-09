@@ -32,7 +32,6 @@ export function makeInvestment(overrides: Partial<Investment> = {}): Investment 
     quantity: '1',
     buyFee: '0',
     status: 'HOLDING',
-    longTerm: false,
     exchange: null,
     targetPrice: null,
     targetEnabled: true,

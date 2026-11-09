@@ -17,7 +17,7 @@ export interface InvestmentFilterState {
   from: string
   to: string
   soldIn: SoldPeriod
-  /** "Bought on": '' = all, NO_EXCHANGE = not set, otherwise an exchange name (case-insensitive). */
+  /** "Held on": '' = all, NO_EXCHANGE = not set, otherwise an exchange name (case-insensitive). */
   exchange: string
   /** Profit statuses to show, for lots sold in profit (NO_PROFIT_STATUS = not selected); empty = all. */
   profitStatus: string[]

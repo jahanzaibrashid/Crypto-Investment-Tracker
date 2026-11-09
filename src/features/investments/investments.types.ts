@@ -32,9 +32,7 @@ export interface Investment {
   buyFee: DecimalString
   /** Derived in the database from `sales`. */
   status: InvestmentStatus
-  /** User-chosen: an open position intended to be held long-term. */
-  longTerm: boolean
-  /** Exchange or wallet the coins were bought on ("Binance", "MetaMask", …); null = not set. */
+  /** Exchange or wallet the coins are held on now ("Binance", "MetaMask BSC", …); null = not set. */
   exchange: string | null
   /** Price the user plans to sell this lot at; shows value and profit at that price. null = not set. */
   targetPrice: DecimalString | null
@@ -64,7 +62,6 @@ export interface InvestmentInput {
   buyPrice: DecimalString
   quantity: DecimalString
   buyFee: DecimalString
-  longTerm: boolean
   exchange: string | null
   note: string | null
 }
