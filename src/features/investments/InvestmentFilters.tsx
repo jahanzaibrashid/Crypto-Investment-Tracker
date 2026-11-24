@@ -57,10 +57,17 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
     const chosen = value.exchange
     const anyUnset = chosen === NO_EXCHANGE || open.some((l) => !l.investment.exchange)
     const missing = chosen && chosen !== NO_EXCHANGE && !used.some((name) => name.toLowerCase() === chosen.toLowerCase())
+    // How many open lots each place holds (names match case-insensitively, like usedExchanges).
+    const counts = new Map<string, number>()
+    for (const l of open) {
+      const k = l.investment.exchange?.trim().toLowerCase() || NO_EXCHANGE
+      counts.set(k, (counts.get(k) ?? 0) + 1)
+    }
+    const withCount = (text: string, n: number) => `${text} (${n})`
     return [
-      { value: '', label: 'All platforms' },
-      ...(missing ? [chosen, ...used] : used).map((name) => ({ value: name, label: name })),
-      ...(anyUnset ? [{ value: NO_EXCHANGE, label: 'Not set' }] : []),
+      { value: '', label: withCount('All platforms', open.length), text: 'All platforms' },
+      ...(missing ? [chosen, ...used] : used).map((name) => ({ value: name, label: withCount(name, counts.get(name.toLowerCase()) ?? 0), text: name })),
+      ...(anyUnset ? [{ value: NO_EXCHANGE, label: withCount('Not set', counts.get(NO_EXCHANGE) ?? 0), text: 'Not set' }] : []),
     ]
   }, [lots, value.exchange])
   const soldRange = soldPeriodRange(value.soldIn)
@@ -88,7 +95,7 @@ export function InvestmentFilters({ value, onChange, resultCount, totalCount, lo
   const chips = [
     ...value.status.map((s) => ({ key: `status-${s}`, text: label(STATUS_OPTIONS, s), clear: () => set('status', value.status.filter((x) => x !== s)) })),
     value.soldIn !== '' && { key: 'soldIn', text: `Sold: ${label(periodOptions, value.soldIn)}`, clear: () => set('soldIn', '') },
-    value.exchange !== '' && { key: 'exchange', text: label(exchangeFilterOptions, value.exchange), clear: () => set('exchange', '') },
+    value.exchange !== '' && { key: 'exchange', text: exchangeFilterOptions.find((o) => o.value === value.exchange)?.text ?? value.exchange, clear: () => set('exchange', '') },
     ...value.profitStatus.map((s) => ({ key: `profit-${s}`, text: label(PROFIT_STATUS_OPTIONS, s), clear: () => set('profitStatus', value.profitStatus.filter((x) => x !== s)) })),
     value.from !== '' && { key: 'from', text: `From ${formatDate(value.from)}`, clear: () => set('from', '') },
     value.to !== '' && { key: 'to', text: `To ${formatDate(value.to)}`, clear: () => set('to', '') },

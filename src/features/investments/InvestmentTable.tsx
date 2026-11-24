@@ -243,10 +243,10 @@ function buildColumns(onAction: (a: InvestmentAction, lot: LotMetrics) => void) 
       sortFn: 'alphanumeric',
       cell: ({ row }) => <CoinCell lot={row.original} />,
     }),
-    helper.accessor((l) => l.investment.buyDate, {
+    // Sorts by the coin quantity the cell leads with (column id kept for saved column settings).
+    helper.accessor((l) => l.quantity.toNumber(), {
       id: 'buyDate',
       header: 'Bought',
-      sortFn: 'alphanumeric',
       cell: ({ row }) => <BoughtCell lot={row.original} />,
     }),
     // Sorts by the buy price the cell leads with.
@@ -314,7 +314,7 @@ const NUMERIC = new Set(['buyDate', 'invested', 'soldAmount', 'currentValue', 'p
 /** Names for the sort buttons ("Sort by investment amount"). */
 const SORT_LABELS: Record<string, string> = {
   coin: 'coin',
-  buyDate: 'buy date',
+  buyDate: 'quantity bought',
   invested: 'buy price',
   soldAmount: 'sold price',
   currentValue: 'current value',

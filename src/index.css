@@ -79,6 +79,12 @@
   #root {
     min-height: 100%;
   }
+  /* Stop stray wide elements from widening the page; otherwise mobile browsers let you
+     pinch-zoom out below 100%. `clip` (not `hidden`) keeps position: sticky working. */
+  html,
+  body {
+    overflow-x: clip;
+  }
   body {
     @apply bg-background text-foreground antialiased;
   }
